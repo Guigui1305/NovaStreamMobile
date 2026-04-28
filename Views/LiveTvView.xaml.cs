@@ -44,13 +44,19 @@ namespace NovaStreamMobile.Views
         private void OnPipClicked(object sender, EventArgs e)
         {
 #if ANDROID
-            var activity = Microsoft.Maui.ApplicationModel.Platform.CurrentActivity;
-            if (activity != null)
+            if (OperatingSystem.IsAndroidVersionAtLeast(26))
             {
-                var builder = new PictureInPictureParams.Builder();
-                // Set aspect ratio (16:9)
-                builder.SetAspectRatio(new Rational(16, 9));
-                activity.EnterPictureInPictureMode(builder.Build());
+                var activity = Microsoft.Maui.ApplicationModel.Platform.CurrentActivity;
+                if (activity != null)
+                {
+                    var builder = new PictureInPictureParams.Builder();
+                    builder.SetAspectRatio(new Rational(16, 9));
+                    var pipParams = builder.Build();
+                    if (pipParams != null)
+                    {
+                        activity.EnterPictureInPictureMode(pipParams);
+                    }
+                }
             }
 #endif
         }
@@ -58,7 +64,6 @@ namespace NovaStreamMobile.Views
         protected override void OnAppearing()
         {
             base.OnAppearing();
-            // Handle UI adjustments when returning from PiP
         }
 
         private void OnBrightnessPanUpdated(object sender, PanUpdatedEventArgs e)

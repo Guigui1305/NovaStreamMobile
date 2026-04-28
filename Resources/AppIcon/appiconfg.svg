@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <circle cx="256" cy="220" r="80" fill="none" stroke="#0078D4" stroke-width="12" />
+  <polygon points="236,190 236,250 286,220" fill="#0078D4" />
+  <text x="256" y="350" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="#FFFFFF" text-anchor="middle">NS</text>
+</svg>

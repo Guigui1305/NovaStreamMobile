@@ -34,7 +34,7 @@
                             <Image Source="{Binding AvatarSource}" Aspect="AspectFill" />
                         </Frame>
                         <Label Text="{Binding Name}" HorizontalOptions="Center" FontSize="16" FontAttributes="Bold" TextColor="White" />
-                        <Label Text="🔒" IsVisible="{Binding IsLocked}" HorizontalOptions="Center" FontSize="12" />
+                        <Label Text="[Locked]" IsVisible="{Binding IsLocked}" HorizontalOptions="Center" FontSize="12" />
                     </VerticalStackLayout>
                 </DataTemplate>
             </CollectionView.ItemTemplate>

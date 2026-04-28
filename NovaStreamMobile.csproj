@@ -21,18 +21,25 @@
 		<ApplicationVersion>1</ApplicationVersion>
 
 		<UseMaui>true</UseMaui>
+		<SkipValidateMauiImplicitPackageReferences>true</SkipValidateMauiImplicitPackageReferences>
+
+		<!-- Suppress non-critical warnings -->
+		<NoWarn>$(NoWarn);CS0618;CA1422;CA1416;XC0022</NoWarn>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="LibVLCSharp.Maui" Version="3.9.1" />
+		<PackageReference Include="Microsoft.Maui.Controls" Version="9.0.120" />
+		<PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="9.0.120" />
+		<PackageReference Include="LibVLCSharp" Version="3.9.1" />
+		<PackageReference Include="VideoLAN.LibVLC.Android" Version="3.6.0" />
 	</ItemGroup>
 
 	<ItemGroup>
-		<!-- App Icon -->
-		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#512BD4" />
-
 		<!-- Splash Screen -->
-		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#512BD4" BaseSize="128,128" />
+		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#0F0F0F" BaseSize="128,128" />
+
+		<!-- App Icon -->
+		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#0F0F0F" />
 
 		<!-- Images -->
 		<MauiImage Include="Resources\Images\*" />
@@ -40,7 +47,7 @@
 		<!-- Custom Fonts -->
 		<MauiFont Include="Resources\Fonts\*" />
 
-		<!-- Raw Assets (also used for webview) -->
+		<!-- Raw Assets -->
 		<MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
 	</ItemGroup>
 

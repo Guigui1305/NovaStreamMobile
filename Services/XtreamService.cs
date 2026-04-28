@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
-using NovaStreamClean.Models;
+using NovaStreamMobile.Models;
 
 namespace NovaStreamMobile.Services
 {

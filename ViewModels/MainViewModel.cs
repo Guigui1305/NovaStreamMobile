@@ -27,6 +27,13 @@ namespace NovaStreamMobile.ViewModels
         }
     }
 
+    public class SubtitleTrack
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public override string ToString() => Name;
+    }
+
     public class LiveTvViewModel : ViewModelBase
     {
         private readonly StorageService _storageService;
@@ -43,7 +50,7 @@ namespace NovaStreamMobile.ViewModels
         private List<string> _favoriteUrls;
         private List<string> _historyUrls;
         private List<Program> _allPrograms = new List<Program>();
-        private TrackDescription? _selectedSubtitle;
+        private SubtitleTrack? _selectedSubtitle;
         
         private string _searchText = string.Empty;
         private string _selectedCategory = "All";
@@ -55,7 +62,7 @@ namespace NovaStreamMobile.ViewModels
         public ObservableCollection<MediaSource> Sources { get; }
         public ObservableCollection<Channel> FilteredChannels { get; } = new ObservableCollection<Channel>();
         public ObservableCollection<string> Categories { get; } = new ObservableCollection<string>();
-        public ObservableCollection<TrackDescription> Subtitles { get; } = new ObservableCollection<TrackDescription>();
+        public ObservableCollection<SubtitleTrack> Subtitles { get; } = new ObservableCollection<SubtitleTrack>();
 
         public bool IsLoading { get => _isLoading; set => SetProperty(ref _isLoading, value); }
         public bool IsPlaying { get => _isPlaying; set => SetProperty(ref _isPlaying, value); }
@@ -118,7 +125,7 @@ namespace NovaStreamMobile.ViewModels
             }
         }
 
-        public TrackDescription? SelectedSubtitle
+        public SubtitleTrack? SelectedSubtitle
         {
             get => _selectedSubtitle;
             set
@@ -187,7 +194,8 @@ namespace NovaStreamMobile.ViewModels
             if (MediaPlayer == null) return;
             MainThread.BeginInvokeOnMainThread(() => {
                 Subtitles.Clear();
-                foreach (var track in MediaPlayer.SpuDescription) Subtitles.Add(track);
+                foreach (var track in MediaPlayer.SpuDescription)
+                    Subtitles.Add(new SubtitleTrack { Id = track.Id, Name = track.Name });
                 SelectedSubtitle = Subtitles.FirstOrDefault(t => t.Id == MediaPlayer.Spu);
             });
         }
@@ -199,7 +207,7 @@ namespace NovaStreamMobile.ViewModels
             FilteredChannels.Clear();
             Categories.Clear();
             Categories.Add("All");
-            Categories.Add("⭐ Favorites");
+            Categories.Add("* Favorites");
             SelectedCategory = "All";
             SearchText = string.Empty;
             
@@ -239,7 +247,7 @@ namespace NovaStreamMobile.ViewModels
             if (!string.IsNullOrWhiteSpace(SearchText))
                 filtered = filtered.Where(c => c.Name.Contains(SearchText, StringComparison.OrdinalIgnoreCase));
             
-            if (SelectedCategory == "⭐ Favorites")
+            if (SelectedCategory == "* Favorites")
                 filtered = filtered.Where(c => _favoriteUrls.Contains(c.Url));
             else if (SelectedCategory != "All")
                 filtered = filtered.Where(c => c.Group == SelectedCategory);
@@ -263,7 +271,7 @@ namespace NovaStreamMobile.ViewModels
             channel.IsFavorite = _favoriteUrls.Contains(channel.Url);
             _storageService.SaveFavorites(_favoriteUrls);
             
-            if (SelectedCategory == "⭐ Favorites") ApplyFilters();
+            if (SelectedCategory == "* Favorites") ApplyFilters();
         }
 
         private void PlayChannel(Channel channel)
@@ -397,7 +405,10 @@ namespace NovaStreamMobile.ViewModels
         {
             _storageService.SetCurrentProfile(profile);
             // Navigate to main app shell
-            Application.Current.MainPage = new AppShell();
+            if (Application.Current?.Windows.Count > 0)
+            {
+                Application.Current.Windows[0].Page = new AppShell();
+            }
         }
     }
 }

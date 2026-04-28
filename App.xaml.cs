@@ -7,9 +7,11 @@ namespace NovaStreamMobile
         public App()
         {
             InitializeComponent();
+        }
 
-            // Start with Profile Selection for a premium experience
-            MainPage = new ProfileSelectionView();
+        protected override Window CreateWindow(IActivationState? activationState)
+        {
+            return new Window(new ProfileSelectionView());
         }
     }
 }

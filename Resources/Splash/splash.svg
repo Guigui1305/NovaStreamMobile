@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <rect width="128" height="128" fill="#0F0F0F" rx="16" />
+  <text x="64" y="58" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#0078D4" text-anchor="middle">Nova</text>
+  <text x="64" y="82" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#4EC9B0" text-anchor="middle">Stream</text>
+</svg>

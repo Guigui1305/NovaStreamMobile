@@ -4,7 +4,7 @@ using System.IO;
 using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using NovaStreamClean.Models;
+using NovaStreamMobile.Models;
 
 namespace NovaStreamMobile.Services
 {
@@ -51,7 +51,7 @@ namespace NovaStreamMobile.Services
                 {
                     currentChannel = new Channel();
                     
-                    // Extraction du nom (après la dernière virgule)
+                    // Extract name (after the last comma)
                     int lastComma = line.LastIndexOf(',');
                     if (lastComma != -1)
                     {

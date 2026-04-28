@@ -5,7 +5,7 @@ using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Xml.Linq;
-using NovaStreamClean.Models;
+using NovaStreamMobile.Models;
 
 namespace NovaStreamMobile.Services
 {

@@ -69,7 +69,7 @@
                             <Grid ColumnDefinitions="Auto, *, Auto" ColumnSpacing="15">
                                 <Frame Grid.Column="0" CornerRadius="20" WidthRequest="40" HeightRequest="40" 
                                        Padding="0" BackgroundColor="{StaticResource Background}" BorderColor="Transparent">
-                                    <Label Text="{Binding Type[0]}" HorizontalOptions="Center" VerticalOptions="Center" 
+                                    <Label Text="{Binding Type}" HorizontalOptions="Center" VerticalOptions="Center" 
                                            TextColor="{StaticResource Primary}" FontAttributes="Bold" />
                                 </Frame>
                                 

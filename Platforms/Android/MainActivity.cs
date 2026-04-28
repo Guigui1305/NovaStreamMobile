@@ -12,7 +12,7 @@ namespace NovaStreamMobile
               SupportsPictureInPicture = true)]
     public class MainActivity : MauiAppCompatActivity
     {
-        protected override void OnCreate(Bundle savedInstanceState)
+        protected override void OnCreate(Bundle? savedInstanceState)
         {
             base.OnCreate(savedInstanceState);
         }
