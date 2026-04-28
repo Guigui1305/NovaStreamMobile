@@ -13,7 +13,7 @@
 
     <Grid x:Name="MainGrid">
         <Grid.RowDefinitions>
-            <RowDefinition x:Name="PlayerRow" Height="250" />
+            <RowDefinition x:Name="PlayerRow" Height="220" />
             <RowDefinition x:Name="SearchRow" Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
@@ -50,30 +50,26 @@
                 </HorizontalStackLayout>
 
                 <!-- Barre inferieure : Controles -->
-                <Frame BackgroundColor="#99000000" CornerRadius="0" Padding="10" VerticalOptions="End" 
+                <Frame BackgroundColor="#99000000" CornerRadius="0" Padding="8" VerticalOptions="End" 
                        BorderColor="Transparent" HasShadow="False">
-                    <Grid ColumnDefinitions="Auto, Auto, Auto, *, Auto" ColumnSpacing="12">
+                    <Grid ColumnDefinitions="Auto, Auto, Auto, *, Auto" ColumnSpacing="8">
                         <Button Grid.Column="0" Text="&lt;&lt;" Command="{Binding PreviousChannelCommand}" 
                                 FontSize="14" BackgroundColor="Transparent" TextColor="White" 
-                                WidthRequest="40" HeightRequest="40" Padding="0" />
-
+                                WidthRequest="36" HeightRequest="36" Padding="0" />
                         <Button Grid.Column="1" x:Name="PlayPauseBtn" Text=">" 
                                 Command="{Binding PlayPauseCommand}" 
                                 FontSize="18" BackgroundColor="Transparent" TextColor="White"
-                                WidthRequest="44" HeightRequest="44" Padding="0" />
-
+                                WidthRequest="40" HeightRequest="40" Padding="0" />
                         <Button Grid.Column="2" Text=">>" Command="{Binding NextChannelCommand}" 
                                 FontSize="14" BackgroundColor="Transparent" TextColor="White" 
-                                WidthRequest="40" HeightRequest="40" Padding="0" />
-
+                                WidthRequest="36" HeightRequest="36" Padding="0" />
                         <Grid Grid.Column="3" ColumnDefinitions="Auto, *">
                             <Label Text="Vol" VerticalOptions="Center" Margin="0,0,5,0" TextColor="White" FontSize="10" />
                             <Slider Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding Volume}" 
                                     MinimumTrackColor="{StaticResource Primary}" MaximumTrackColor="#555555" ThumbColor="White" />
                         </Grid>
-
                         <Button Grid.Column="4" Text="[ ]" FontSize="12" BackgroundColor="Transparent" TextColor="White"
-                                WidthRequest="40" HeightRequest="40" Padding="0" Clicked="OnFullscreenClicked" />
+                                WidthRequest="36" HeightRequest="36" Padding="0" Clicked="OnFullscreenClicked" />
                     </Grid>
                 </Frame>
 
@@ -88,8 +84,9 @@
             <!-- Ecran d'attente -->
             <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="8"
                                  IsVisible="{Binding HasChannel, Converter={StaticResource BoolInvertConverter}}">
-                <Label Text="PAS DE SIGNAL" FontSize="22" FontAttributes="Bold" TextColor="#333333" HorizontalTextAlignment="Center" />
-                <Label Text="Selectionnez une chaine pour commencer" TextColor="{StaticResource TextMuted}" 
+                <Label Text="NOVASTREAM" FontSize="24" FontAttributes="Bold" TextColor="#222222" 
+                       HorizontalTextAlignment="Center" CharacterSpacing="3" />
+                <Label Text="Selectionnez une chaine" TextColor="#444444" 
                        HorizontalTextAlignment="Center" FontSize="13" />
             </VerticalStackLayout>
             
@@ -97,123 +94,88 @@
                                HorizontalOptions="Center" VerticalOptions="Center" />
         </Grid>
 
-        <!-- Barre de recherche et filtre -->
-        <Grid Grid.Row="1" BackgroundColor="{StaticResource Secondary}" Padding="10,8" RowDefinitions="Auto, Auto" RowSpacing="8">
-            <Frame Grid.Row="0" Padding="10,0" HeightRequest="40" CornerRadius="20" 
+        <!-- Barre de recherche + categories -->
+        <VerticalStackLayout Grid.Row="1" BackgroundColor="{StaticResource Secondary}" Spacing="0">
+            <!-- Status / Erreur -->
+            <Label Text="{Binding StatusMessage}" FontSize="11" TextColor="{StaticResource TextMuted}" 
+                   Margin="12,6,12,0" />
+            <Label Text="{Binding ErrorMessage}" FontSize="11" TextColor="{StaticResource Danger}" 
+                   Margin="12,2,12,0" IsVisible="{Binding HasError}" />
+
+            <!-- Recherche -->
+            <Frame Padding="10,0" HeightRequest="38" CornerRadius="20" Margin="12,6,12,4"
                    BackgroundColor="{StaticResource SurfaceLight}" BorderColor="{StaticResource CardBorder}" HasShadow="False">
-                <Grid ColumnDefinitions="Auto, *">
-                    <Label Text="Rechercher" VerticalOptions="Center" Margin="0,0,8,0" TextColor="{StaticResource TextMuted}" FontSize="12" />
-                    <Entry Grid.Column="1" Text="{Binding SearchText}" Placeholder="Rechercher des chaines..." 
-                           TextColor="White" PlaceholderColor="{StaticResource TextMuted}" FontSize="14" 
-                           VerticalOptions="Center" BackgroundColor="Transparent" />
-                </Grid>
+                <Entry Text="{Binding SearchText}" Placeholder="Rechercher des chaines..." 
+                       TextColor="White" PlaceholderColor="{StaticResource TextMuted}" FontSize="14" 
+                       VerticalOptions="Center" BackgroundColor="Transparent" />
             </Frame>
 
-            <ScrollView Grid.Row="1" Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
-                <HorizontalStackLayout Spacing="8">
-                    <Label Text="Categorie :" VerticalOptions="Center" TextColor="{StaticResource TextMuted}" FontSize="12" />
-                    <Picker ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}"
-                            TextColor="{StaticResource Primary}" FontSize="14" BackgroundColor="Transparent"
-                            Title="Toutes" WidthRequest="160" />
-                </HorizontalStackLayout>
+            <!-- Categories horizontales -->
+            <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never" Margin="0,2,0,6">
+                <HorizontalStackLayout x:Name="CategoriesBar" Spacing="6" Padding="12,0" />
             </ScrollView>
-        </Grid>
+        </VerticalStackLayout>
 
-        <!-- Zone de contenu : Sources + Chaines -->
-        <Grid x:Name="ContentGrid" Grid.Row="2" ColumnDefinitions="80, *">
-            <!-- Liste des sources (sidebar) -->
-            <CollectionView Grid.Column="0" ItemsSource="{Binding Sources}" 
-                            SelectedItem="{Binding SelectedSource}"
-                            SelectionMode="Single"
-                            BackgroundColor="{StaticResource Secondary}">
-                <CollectionView.ItemTemplate>
-                    <DataTemplate>
-                        <Grid Padding="8">
-                            <VisualStateManager.VisualStateGroups>
-                                <VisualStateGroup Name="CommonStates">
-                                    <VisualState Name="Normal" />
-                                    <VisualState Name="Selected">
-                                        <VisualState.Setters>
-                                            <Setter Property="BackgroundColor" Value="#30E50914" />
-                                        </VisualState.Setters>
-                                    </VisualState>
-                                </VisualStateGroup>
-                            </VisualStateManager.VisualStateGroups>
-                            <VerticalStackLayout Spacing="3" HorizontalOptions="Center">
-                                <Frame CornerRadius="20" WidthRequest="42" HeightRequest="42" Padding="0" 
-                                       BackgroundColor="{StaticResource SurfaceLight}" BorderColor="{StaticResource CardBorder}"
-                                       HasShadow="False">
-                                    <Label Text="{Binding Name, StringFormat='{0:0}'}" HorizontalOptions="Center" VerticalOptions="Center" 
-                                           FontAttributes="Bold" TextColor="{StaticResource Primary}" FontSize="10" />
-                                </Frame>
-                                <Label Text="{Binding Name}" FontSize="8" HorizontalTextAlignment="Center" 
-                                       LineBreakMode="TailTruncation" TextColor="{StaticResource TextSecondary}" />
+        <!-- Liste des chaines -->
+        <CollectionView Grid.Row="2" ItemsSource="{Binding FilteredChannels}"
+                        SelectionMode="Single"
+                        SelectionChanged="OnChannelSelected"
+                        Margin="8,4">
+            <CollectionView.EmptyView>
+                <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="12" Margin="0,40">
+                    <ActivityIndicator IsRunning="{Binding IsLoading}" Color="{StaticResource Primary}" />
+                    <Label Text="Selectionnez une categorie pour voir les chaines" FontSize="14" 
+                           TextColor="{StaticResource TextMuted}" HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </CollectionView.EmptyView>
+            <CollectionView.ItemsLayout>
+                <LinearItemsLayout Orientation="Vertical" ItemSpacing="4" />
+            </CollectionView.ItemsLayout>
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="models:Channel">
+                    <Frame BackgroundColor="{StaticResource Surface}" CornerRadius="10" 
+                           Padding="10" BorderColor="{StaticResource CardBorder}" HasShadow="False">
+                        <Grid ColumnDefinitions="44, *, Auto" ColumnSpacing="10">
+                            <!-- Logo chaine -->
+                            <Frame Grid.Column="0" CornerRadius="8" Padding="0" HeightRequest="44" WidthRequest="44" 
+                                   BackgroundColor="{StaticResource SurfaceLight}" BorderColor="Transparent" HasShadow="False"
+                                   IsClippedToBounds="True">
+                                <Image Source="{Binding LogoUrl}" Aspect="AspectFit" Margin="2"
+                                       WidthRequest="40" HeightRequest="40" />
+                            </Frame>
+
+                            <!-- Info chaine + EPG -->
+                            <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="2">
+                                <Label Text="{Binding Name}" FontAttributes="Bold" FontSize="13" 
+                                       LineBreakMode="TailTruncation" TextColor="White" />
+                                <Label Text="{Binding CurrentProgramTitle}" FontSize="10" 
+                                       TextColor="{StaticResource Accent}" LineBreakMode="TailTruncation" />
+                                <ProgressBar Progress="{Binding CurrentProgramProgress}" 
+                                             ProgressColor="{StaticResource Accent}" HeightRequest="2" Margin="0,2,0,0"
+                                             IsVisible="{Binding HasCurrentProgram}" />
                             </VerticalStackLayout>
+
+                            <!-- Bouton favori -->
+                            <Button Grid.Column="2" Text="*" FontSize="20"
+                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:LiveTvViewModel}}, Path=ToggleFavoriteCommand}"
+                                    CommandParameter="{Binding .}"
+                                    BackgroundColor="Transparent" VerticalOptions="Center"
+                                    WidthRequest="36" HeightRequest="36" Padding="0">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="TextColor" Value="#444444" />
+                                        <Style.Triggers>
+                                            <DataTrigger TargetType="Button" Binding="{Binding IsFavorite}" Value="True">
+                                                <Setter Property="TextColor" Value="{StaticResource FavoriteGold}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
                         </Grid>
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
-            </CollectionView>
-
-            <!-- Liste des chaines -->
-            <CollectionView Grid.Column="1" ItemsSource="{Binding FilteredChannels}"
-                            SelectionMode="Single"
-                            SelectionChanged="OnChannelSelected"
-                            Margin="8,4">
-                <CollectionView.EmptyView>
-                    <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="12" Margin="0,40">
-                        <Label Text="Aucune chaine" FontSize="18" TextColor="{StaticResource TextSecondary}" 
-                               HorizontalTextAlignment="Center" FontAttributes="Bold" />
-                        <Label Text="Selectionnez une source ou ajoutez-en une dans l'onglet Sources" 
-                               FontSize="13" TextColor="{StaticResource TextMuted}" HorizontalTextAlignment="Center" />
-                    </VerticalStackLayout>
-                </CollectionView.EmptyView>
-                <CollectionView.ItemsLayout>
-                    <LinearItemsLayout Orientation="Vertical" ItemSpacing="6" />
-                </CollectionView.ItemsLayout>
-                <CollectionView.ItemTemplate>
-                    <DataTemplate x:DataType="models:Channel">
-                        <Frame Style="{StaticResource CardFrame}" Padding="10">
-                            <Grid ColumnDefinitions="48, *, Auto" ColumnSpacing="10">
-                                <!-- Logo chaine -->
-                                <Frame Grid.Column="0" CornerRadius="8" Padding="0" HeightRequest="48" WidthRequest="48" 
-                                       BackgroundColor="{StaticResource SurfaceLight}" BorderColor="Transparent" HasShadow="False">
-                                    <Image Source="{Binding LogoUrl}" Aspect="AspectFit" Margin="4" />
-                                </Frame>
-
-                                <!-- Info chaine + EPG -->
-                                <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="2">
-                                    <Label Text="{Binding Name}" FontAttributes="Bold" FontSize="14" 
-                                           LineBreakMode="TailTruncation" TextColor="White" />
-                                    <Label Text="{Binding CurrentProgramTitle}" FontSize="11" 
-                                           TextColor="{StaticResource Accent}" LineBreakMode="TailTruncation" />
-                                    <ProgressBar Progress="{Binding CurrentProgramProgress}" 
-                                                 ProgressColor="{StaticResource Accent}" HeightRequest="2" Margin="0,2,0,0"
-                                                 IsVisible="{Binding HasCurrentProgram}" />
-                                    <Label Text="{Binding Group}" FontSize="10" TextColor="{StaticResource TextMuted}" />
-                                </VerticalStackLayout>
-
-                                <!-- Bouton favori -->
-                                <Button Grid.Column="2" Text="*" FontSize="20"
-                                        Command="{Binding Source={RelativeSource AncestorType={x:Type vm:LiveTvViewModel}}, Path=ToggleFavoriteCommand}"
-                                        CommandParameter="{Binding .}"
-                                        BackgroundColor="Transparent" VerticalOptions="Center"
-                                        WidthRequest="40" HeightRequest="40" Padding="0">
-                                    <Button.Style>
-                                        <Style TargetType="Button">
-                                            <Setter Property="TextColor" Value="#444444" />
-                                            <Style.Triggers>
-                                                <DataTrigger TargetType="Button" Binding="{Binding IsFavorite}" Value="True">
-                                                    <Setter Property="TextColor" Value="{StaticResource FavoriteGold}" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Button.Style>
-                                </Button>
-                            </Grid>
-                        </Frame>
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
-            </CollectionView>
-        </Grid>
+                    </Frame>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
     </Grid>
 </ContentPage>

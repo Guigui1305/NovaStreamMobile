@@ -1,7 +1,9 @@
 using Microsoft.Maui.Controls;
 using NovaStreamMobile.Models;
+using NovaStreamMobile.Services;
 using NovaStreamMobile.ViewModels;
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using LibVLCSharp.Shared;
 #if ANDROID
@@ -18,6 +20,7 @@ namespace NovaStreamMobile.Views
         private double _currentBrightness = 0.5;
         private double _startBrightness;
         private LiveTvViewModel? _vm;
+        private bool _categoriesBuilt = false;
 
         public LiveTvView()
         {
@@ -29,6 +32,75 @@ namespace NovaStreamMobile.Views
             base.OnAppearing();
             _vm = BindingContext as LiveTvViewModel;
             AttachVideoView();
+
+            if (_vm != null && !_categoriesBuilt)
+            {
+                _vm.LiveCategories.CollectionChanged += (s, e) =>
+                {
+                    MainThread.BeginInvokeOnMainThread(BuildCategoryButtons);
+                };
+                if (_vm.LiveCategories.Count > 0)
+                    BuildCategoryButtons();
+            }
+        }
+
+        private void BuildCategoryButtons()
+        {
+            if (_vm == null) return;
+            _categoriesBuilt = true;
+
+            CategoriesBar.Children.Clear();
+
+            // Bouton Favoris
+            var favBtn = CreateCategoryButton("Favoris", "favorites",
+                _vm.SelectedCategoryId == "favorites");
+            CategoriesBar.Children.Add(favBtn);
+
+            // Boutons de categories
+            foreach (var cat in _vm.LiveCategories)
+            {
+                string displayName = CleanCategoryName(cat.CategoryName);
+                if (string.IsNullOrWhiteSpace(displayName)) continue;
+
+                bool isSelected = cat.CategoryId == _vm.SelectedCategoryId;
+                var btn = CreateCategoryButton(displayName, cat.CategoryId, isSelected);
+                CategoriesBar.Children.Add(btn);
+            }
+        }
+
+        private Button CreateCategoryButton(string text, string categoryId, bool isSelected)
+        {
+            var btn = new Button
+            {
+                Text = text,
+                BackgroundColor = isSelected ? Color.FromArgb("#E50914") : Color.FromArgb("#1F1F1F"),
+                TextColor = Colors.White,
+                FontSize = 11,
+                CornerRadius = 16,
+                HeightRequest = 32,
+                Padding = new Thickness(12, 0),
+                BorderColor = isSelected ? Color.FromArgb("#E50914") : Color.FromArgb("#333333"),
+                BorderWidth = 1
+            };
+            btn.Clicked += (s, e) =>
+            {
+                if (_vm != null)
+                {
+                    _vm.SelectedCategoryId = categoryId;
+                    BuildCategoryButtons(); // Refresh selection
+                }
+            };
+            return btn;
+        }
+
+        private string CleanCategoryName(string name)
+        {
+            name = name.Replace("|FR|", "").Replace("|CH|", "").Replace("|MULTI|", "").Trim();
+            if (name.StartsWith("*")) name = name.TrimStart('*').Trim();
+            // Enlever le symbole special au debut
+            while (name.Length > 0 && !char.IsLetterOrDigit(name[0]) && name[0] != '(')
+                name = name.Substring(1).Trim();
+            return name;
         }
 
         private void AttachVideoView()
@@ -43,9 +115,8 @@ namespace NovaStreamMobile.Views
                 videoView.MediaPlayer = _vm.MediaPlayer;
 
                 var nativeView = new Microsoft.Maui.Controls.ContentView();
-                nativeView.Content = new Label { Text = "" }; // placeholder
+                nativeView.Content = new Label { Text = "" };
 
-                // Use handler to embed native Android view
                 VideoContainer.Content = nativeView;
 
                 MainThread.BeginInvokeOnMainThread(() =>
@@ -82,7 +153,6 @@ namespace NovaStreamMobile.Views
                 UpdatePlayPauseButton();
             }
 
-            // Reset selection for re-tap
             if (sender is CollectionView cv)
                 cv.SelectedItem = null;
         }
@@ -134,15 +204,13 @@ namespace NovaStreamMobile.Views
                 Shell.SetNavBarIsVisible(this, false);
                 PlayerRow.Height = new GridLength(1, GridUnitType.Star);
                 SearchRow.Height = new GridLength(0);
-                ContentGrid.IsVisible = false;
             }
             else
             {
                 Shell.SetTabBarIsVisible(this, true);
                 Shell.SetNavBarIsVisible(this, true);
-                PlayerRow.Height = new GridLength(250);
+                PlayerRow.Height = new GridLength(220);
                 SearchRow.Height = GridLength.Auto;
-                ContentGrid.IsVisible = true;
             }
         }
 
@@ -158,9 +226,7 @@ namespace NovaStreamMobile.Views
                     builder.SetAspectRatio(new Rational(16, 9));
                     var pipParams = builder.Build();
                     if (pipParams != null)
-                    {
                         activity.EnterPictureInPictureMode(pipParams);
-                    }
                 }
             }
 #endif
@@ -187,9 +253,7 @@ namespace NovaStreamMobile.Views
                     {
                         await Task.Delay(1000);
                         MainThread.BeginInvokeOnMainThread(() =>
-                        {
-                            BrightnessIndicator.IsVisible = false;
-                        });
+                            BrightnessIndicator.IsVisible = false);
                     });
                     break;
             }

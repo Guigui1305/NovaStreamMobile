@@ -67,6 +67,21 @@ namespace NovaStreamMobile.Views
             }
         }
 
+        private async void OnClearXtreamCacheClicked(object? sender, EventArgs e)
+        {
+            bool confirm = await DisplayAlert(
+                "Vider le cache",
+                "Voulez-vous supprimer le cache des chaines et categories ?",
+                "Vider",
+                "Annuler");
+
+            if (confirm)
+            {
+                XtreamService.ClearCache();
+                await DisplayAlert("Succes", "Cache des chaines vide. Les donnees seront rechargees.", "OK");
+            }
+        }
+
         private async void OnClearAllDataClicked(object? sender, EventArgs e)
         {
             bool confirm = await DisplayAlert(

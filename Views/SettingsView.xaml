@@ -66,6 +66,10 @@
                             CornerRadius="8" HeightRequest="44" FontSize="13"
                             Clicked="OnClearCacheClicked" />
 
+                    <Button Text="Vider le cache des chaines" BackgroundColor="{StaticResource SurfaceLight}" TextColor="White"
+                            CornerRadius="8" HeightRequest="44" FontSize="13"
+                            Clicked="OnClearXtreamCacheClicked" />
+
                     <Button Text="Supprimer toutes les donnees" BackgroundColor="#40E50914" TextColor="{StaticResource Primary}"
                             CornerRadius="8" HeightRequest="44" FontSize="13"
                             Clicked="OnClearAllDataClicked" />
@@ -76,7 +80,7 @@
             <Frame Style="{StaticResource CardFrame}" Margin="0,0,0,30">
                 <VerticalStackLayout Spacing="8">
                     <Label Text="A PROPOS" FontSize="12" FontAttributes="Bold" TextColor="{StaticResource Primary}" />
-                    <Label Text="NovaStream v2.0" TextColor="White" FontSize="14" />
+                    <Label Text="NovaStream v3.0" TextColor="White" FontSize="14" />
                     <Label Text="Lecteur IPTV premium pour Android" TextColor="{StaticResource TextMuted}" FontSize="12" />
                     <Label Text="Propulse par LibVLC et .NET MAUI" TextColor="{StaticResource TextMuted}" FontSize="12" />
                 </VerticalStackLayout>

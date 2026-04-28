@@ -8,7 +8,7 @@
     <Grid RowDefinitions="Auto, Auto, *" RowSpacing="0">
 
         <!-- Tabs Films / Series -->
-        <Grid Grid.Row="0" ColumnDefinitions="*, *" BackgroundColor="#141414" Padding="0" HeightRequest="48">
+        <Grid Grid.Row="0" ColumnDefinitions="*, *" BackgroundColor="#141414" Padding="0" HeightRequest="46">
             <Button x:Name="FilmsTab" Text="Films" Clicked="OnFilmsTabClicked"
                     BackgroundColor="Transparent" TextColor="#E50914" FontAttributes="Bold" FontSize="16"
                     CornerRadius="0" BorderWidth="0" />
@@ -17,59 +17,83 @@
                     CornerRadius="0" BorderWidth="0" />
         </Grid>
 
-        <!-- Barre de recherche + filtre categorie -->
-        <Grid Grid.Row="1" Padding="12,8" RowDefinitions="Auto, Auto" RowSpacing="8" BackgroundColor="#141414">
-            <Frame Grid.Row="0" Padding="10,0" HeightRequest="40" CornerRadius="20"
+        <!-- Barre de recherche + filtre categorie + status -->
+        <VerticalStackLayout Grid.Row="1" BackgroundColor="#141414" Spacing="0">
+            <!-- Status -->
+            <Label x:Name="StatusLabel" Text="" FontSize="11" TextColor="#808080" Margin="12,4,12,0" />
+            <Label x:Name="ErrorLabel" Text="" FontSize="11" TextColor="#E50914" Margin="12,2,12,0" />
+
+            <!-- Recherche -->
+            <Frame Padding="10,0" HeightRequest="38" CornerRadius="20" Margin="12,6,12,4"
                    BackgroundColor="#1F1F1F" BorderColor="#333333" HasShadow="False">
-                <Grid ColumnDefinitions="Auto, *">
-                    <Label Text="Rechercher" VerticalOptions="Center" Margin="0,0,8,0" TextColor="#808080" FontSize="12" />
-                    <Entry x:Name="SearchEntry" Grid.Column="1" Placeholder="Rechercher..."
-                           TextColor="White" PlaceholderColor="#808080" FontSize="14"
-                           VerticalOptions="Center" BackgroundColor="Transparent"
-                           TextChanged="OnSearchTextChanged" />
-                </Grid>
+                <Entry x:Name="SearchEntry" Placeholder="Rechercher un film ou une serie..."
+                       TextColor="White" PlaceholderColor="#808080" FontSize="14"
+                       VerticalOptions="Center" BackgroundColor="Transparent"
+                       TextChanged="OnSearchTextChanged" />
             </Frame>
-            <ScrollView Grid.Row="1" Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
-                <HorizontalStackLayout x:Name="CategoriesBar" Spacing="8" />
+
+            <!-- Categories -->
+            <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never" Margin="0,2,0,6">
+                <HorizontalStackLayout x:Name="CategoriesBar" Spacing="6" Padding="12,0" />
             </ScrollView>
-        </Grid>
+        </VerticalStackLayout>
 
         <!-- Grille de contenu -->
-        <CollectionView x:Name="ContentCollection" Grid.Row="2" Margin="8,4">
-            <CollectionView.EmptyView>
-                <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="12" Margin="0,60">
-                    <ActivityIndicator x:Name="LoadingIndicator" IsRunning="True" Color="#E50914" />
-                    <Label x:Name="EmptyLabel" Text="Chargement..." FontSize="16" TextColor="#808080"
-                           HorizontalTextAlignment="Center" />
-                </VerticalStackLayout>
-            </CollectionView.EmptyView>
-            <CollectionView.ItemsLayout>
-                <GridItemsLayout Orientation="Vertical" Span="3" VerticalItemSpacing="10" HorizontalItemSpacing="8" />
-            </CollectionView.ItemsLayout>
-            <CollectionView.ItemTemplate>
-                <DataTemplate>
-                    <VerticalStackLayout Spacing="4">
-                        <Frame CornerRadius="8" Padding="0" HeightRequest="170"
-                               BackgroundColor="#1F1F1F" BorderColor="#333333" HasShadow="False">
-                            <Frame.GestureRecognizers>
-                                <TapGestureRecognizer Tapped="OnItemTapped" />
-                            </Frame.GestureRecognizers>
-                            <Grid>
-                                <Image Source="{Binding ImageUrl}" Aspect="AspectFill" />
-                                <Frame BackgroundColor="#CC000000" CornerRadius="4" Padding="4,2"
-                                       HorizontalOptions="End" VerticalOptions="End" Margin="4"
-                                       BorderColor="Transparent" HasShadow="False"
-                                       IsVisible="{Binding HasRating}">
-                                    <Label Text="{Binding Rating}" FontSize="10" TextColor="#FFD700" FontAttributes="Bold" />
-                                </Frame>
-                            </Grid>
-                        </Frame>
-                        <Label Text="{Binding Name}" FontSize="11" TextColor="White"
-                               LineBreakMode="TailTruncation" MaxLines="2"
+        <Grid Grid.Row="2">
+            <CollectionView x:Name="ContentCollection" Margin="6,4">
+                <CollectionView.EmptyView>
+                    <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="12" Margin="0,60">
+                        <ActivityIndicator x:Name="LoadingIndicator" IsRunning="True" Color="#E50914" />
+                        <Label x:Name="EmptyLabel" Text="Selectionnez une categorie" FontSize="14" TextColor="#808080"
                                HorizontalTextAlignment="Center" />
                     </VerticalStackLayout>
-                </DataTemplate>
-            </CollectionView.ItemTemplate>
-        </CollectionView>
+                </CollectionView.EmptyView>
+                <CollectionView.ItemsLayout>
+                    <GridItemsLayout Orientation="Vertical" Span="3" VerticalItemSpacing="8" HorizontalItemSpacing="6" />
+                </CollectionView.ItemsLayout>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <VerticalStackLayout Spacing="3">
+                            <Frame CornerRadius="8" Padding="0" HeightRequest="165"
+                                   BackgroundColor="#1A1A1A" BorderColor="Transparent" HasShadow="False"
+                                   IsClippedToBounds="True">
+                                <Frame.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnItemTapped" />
+                                </Frame.GestureRecognizers>
+                                <Grid>
+                                    <Image Source="{Binding ImageUrl}" Aspect="AspectFill" />
+                                    <!-- Gradient overlay -->
+                                    <BoxView Color="#80000000" VerticalOptions="End" HeightRequest="40" />
+                                    <!-- Rating badge -->
+                                    <Frame BackgroundColor="#CC000000" CornerRadius="4" Padding="4,2"
+                                           HorizontalOptions="End" VerticalOptions="Start" Margin="4"
+                                           BorderColor="Transparent" HasShadow="False"
+                                           IsVisible="{Binding HasRating}">
+                                        <Label Text="{Binding Rating}" FontSize="10" TextColor="#FFD700" FontAttributes="Bold" />
+                                    </Frame>
+                                    <!-- Year badge -->
+                                    <Frame BackgroundColor="#CCE50914" CornerRadius="4" Padding="4,2"
+                                           HorizontalOptions="Start" VerticalOptions="End" Margin="4"
+                                           BorderColor="Transparent" HasShadow="False"
+                                           IsVisible="{Binding HasYear}">
+                                        <Label Text="{Binding Year}" FontSize="9" TextColor="White" FontAttributes="Bold" />
+                                    </Frame>
+                                </Grid>
+                            </Frame>
+                            <Label Text="{Binding Name}" FontSize="10" TextColor="White"
+                                   LineBreakMode="TailTruncation" MaxLines="2"
+                                   HorizontalTextAlignment="Center" />
+                        </VerticalStackLayout>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <!-- Bouton charger plus -->
+            <Button x:Name="LoadMoreButton" Text="Charger plus..." 
+                    BackgroundColor="#1F1F1F" TextColor="#E50914" FontSize="13"
+                    CornerRadius="20" HeightRequest="36" Margin="40,0,40,12"
+                    VerticalOptions="End" IsVisible="False"
+                    Clicked="OnLoadMoreClicked" BorderColor="#333333" BorderWidth="1" />
+        </Grid>
     </Grid>
 </ContentPage>

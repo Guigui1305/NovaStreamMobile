@@ -17,8 +17,8 @@
 		<ApplicationIdGuid>73829401-2837-4920-A1B2-C3D4E5F6A7B8</ApplicationIdGuid>
 
 		<!-- Versions -->
-		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
-		<ApplicationVersion>1</ApplicationVersion>
+		<ApplicationDisplayVersion>3.0</ApplicationDisplayVersion>
+		<ApplicationVersion>3</ApplicationVersion>
 
 		<UseMaui>true</UseMaui>
 		<SkipValidateMauiImplicitPackageReferences>true</SkipValidateMauiImplicitPackageReferences>
