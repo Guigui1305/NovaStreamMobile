@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vlc="clr-namespace:LibVLCSharp.Maui;assembly=LibVLCSharp.Maui"
+             xmlns:vm="clr-namespace:NovaStreamMobile.ViewModels"
+             xmlns:models="clr-namespace:NovaStreamMobile.Models"
+             x:Class="NovaStreamMobile.Views.LiveTvView"
+             BackgroundColor="{StaticResource Background}"
+             Title="NovaStream Live">
+    
+    <ContentPage.BindingContext>
+        <vm:LiveTvViewModel />
+    </ContentPage.BindingContext>
+
+    <Grid x:Name="MainGrid">
+        <Grid.RowDefinitions>
+            <RowDefinition x:Name="PlayerRow" Height="280" />
+            <RowDefinition x:Name="SearchRow" Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Player Area -->
+        <Grid Grid.Row="0" BackgroundColor="Black">
+            <vlc:VideoView MediaPlayer="{Binding MediaPlayer}" />
+            
+            <!-- Gesture Overlay for Brightness (Left Side) -->
+            <Grid HorizontalOptions="Start" WidthRequest="150" BackgroundColor="Transparent">
+                <Grid.GestureRecognizers>
+                    <PanGestureRecognizer PanUpdated="OnBrightnessPanUpdated" />
+                </Grid.GestureRecognizers>
+            </Grid>
+
+            <!-- Brightness Indicator Overlay -->
+            <Frame x:Name="BrightnessIndicator" 
+                   IsVisible="False"
+                   BackgroundColor="#CC000000" 
+                   CornerRadius="10" 
+                   Padding="10" 
+                   HorizontalOptions="Center" 
+                   VerticalOptions="Center" 
+                   BorderColor="Transparent">
+                <VerticalStackLayout Spacing="5" WidthRequest="40">
+                    <Label Text="☀️" HorizontalOptions="Center" FontSize="20" />
+                    <ProgressBar x:Name="BrightnessBar" Progress="0.5" ProgressColor="{StaticResource Primary}" HeightRequest="100" Rotation="-90" WidthRequest="100" />
+                </VerticalStackLayout>
+            </Frame>
+            
+            <!-- Player Controls Overlay -->
+            <Grid IsVisible="{Binding SelectedChannel, Converter={StaticResource NullToVisibilityConverter}, ConverterParameter=Invert}">
+                <!-- Top Bar: Subtitles, PiP, Cast -->
+                <HorizontalStackLayout HorizontalOptions="End" VerticalOptions="Top" Margin="10" Spacing="10">
+                    <ImageButton Source="cast.png" WidthRequest="30" HeightRequest="30" BackgroundColor="#80000000" CornerRadius="15" Padding="5" />
+                    <ImageButton Source="pip.png" WidthRequest="30" HeightRequest="30" BackgroundColor="#80000000" CornerRadius="15" Padding="5" Clicked="OnPipClicked" />
+                    <Frame BackgroundColor="#80000000" CornerRadius="20" Padding="5" BorderColor="Transparent">
+                        <Picker Title="CC" ItemsSource="{Binding Subtitles}" ItemDisplayBinding="{Binding Name}"
+                                SelectedItem="{Binding SelectedSubtitle}" TextColor="White" FontSize="12"
+                                WidthRequest="60" HeightRequest="35" />
+                    </Frame>
+                </HorizontalStackLayout>
+
+                <!-- Bottom Bar: Controls -->
+                <Frame BackgroundColor="#80000000" CornerRadius="0" Padding="10" VerticalOptions="End" BorderColor="Transparent">
+                    <Grid ColumnDefinitions="Auto, Auto, Auto, *, Auto, Auto" ColumnSpacing="15">
+                        <ImageButton Grid.Column="0" Command="{Binding PreviousChannelCommand}" Source="prev.png" WidthRequest="25" HeightRequest="25" VerticalOptions="Center" />
+
+                        <ImageButton Grid.Column="1" Command="{Binding PlayPauseCommand}" WidthRequest="35" HeightRequest="35" VerticalOptions="Center">
+                            <ImageButton.Style>
+                                <Style TargetType="ImageButton">
+                                    <Setter Property="Source" Value="play.png" />
+                                    <Style.Triggers>
+                                        <DataTrigger TargetType="ImageButton" Binding="{Binding IsPlaying}" Value="True">
+                                            <Setter Property="Source" Value="pause.png" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ImageButton.Style>
+                        </ImageButton>
+
+                        <ImageButton Grid.Column="2" Command="{Binding NextChannelCommand}" Source="next.png" WidthRequest="25" HeightRequest="25" VerticalOptions="Center" />
+
+                        <Grid Grid.Column="3" ColumnDefinitions="Auto, *">
+                            <Label Text="🔈" VerticalOptions="Center" Margin="0,0,5,0" />
+                            <Slider Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding Volume}" 
+                                    MinimumTrackColor="{StaticResource Primary}" MaximumTrackColor="Gray" ThumbColor="White" />
+                        </Grid>
+
+                        <ImageButton Grid.Column="5" Source="fullscreen.png" WidthRequest="25" HeightRequest="25" 
+                                     VerticalOptions="Center" Clicked="OnFullscreenClicked" />
+                    </Grid>
+                </Frame>
+            </Grid>
+
+            <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="10"
+                                 IsVisible="{Binding SelectedChannel, Converter={StaticResource NullToVisibilityConverter}}">
+                <Label Text="NO SIGNAL" FontSize="24" FontAttributes="Bold" TextColor="#333333" HorizontalTextAlignment="Center" />
+                <Label Text="Select a channel to start" TextColor="Gray" HorizontalTextAlignment="Center" />
+            </VerticalStackLayout>
+            
+            <ActivityIndicator IsRunning="{Binding IsLoading}" Color="{StaticResource Primary}" 
+                               HorizontalOptions="Center" VerticalOptions="Center" />
+        </Grid>
+
+        <!-- Search and Filter Bar -->
+        <Grid Grid.Row="1" BackgroundColor="{StaticResource Secondary}" Padding="10" RowDefinitions="Auto, Auto" RowSpacing="10">
+            <Frame Grid.Row="0" Padding="10,0" HeightRequest="40" CornerRadius="20" BackgroundColor="{StaticResource Surface}" BorderColor="Transparent">
+                <Grid ColumnDefinitions="Auto, *">
+                    <Label Text="🔍" VerticalOptions="Center" Margin="0,0,10,0" />
+                    <Entry Grid.Column="1" Text="{Binding SearchText}" Placeholder="Search channels..." 
+                           TextColor="White" PlaceholderColor="Gray" FontSize="14" VerticalOptions="Center" />
+                </Grid>
+            </Frame>
+
+            <ScrollView Grid.Row="1" Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+                <HorizontalStackLayout Spacing="10">
+                    <Label Text="Category:" VerticalOptions="Center" TextColor="Gray" FontSize="12" Margin="0,0,5,0" />
+                    <Picker ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}"
+                            TextColor="{StaticResource Primary}" FontSize="14" BackgroundColor="Transparent"
+                            Title="Select Category" WidthRequest="150" />
+                </HorizontalStackLayout>
+            </ScrollView>
+        </Grid>
+
+        <!-- Content Area -->
+        <Grid x:Name="ContentGrid" Grid.Row="2" ColumnDefinitions="80, *">
+            <CollectionView Grid.Column="0" ItemsSource="{Binding Sources}" 
+                            SelectedItem="{Binding SelectedSource}"
+                            SelectionMode="Single"
+                            BackgroundColor="{StaticResource Secondary}">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Padding="10">
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup Name="CommonStates">
+                                    <VisualState Name="Normal" />
+                                    <VisualState Name="Selected">
+                                        <VisualState.Setters>
+                                            <Setter Property="BackgroundColor" Value="#302196F3" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+                            <VerticalStackLayout Spacing="2" HorizontalOptions="Center">
+                                <Frame CornerRadius="20" WidthRequest="40" HeightRequest="40" Padding="0" 
+                                       BackgroundColor="{StaticResource Surface}" BorderColor="Transparent">
+                                    <Label Text="{Binding Name[0]}" HorizontalOptions="Center" VerticalOptions="Center" 
+                                           FontAttributes="Bold" TextColor="{StaticResource Primary}" />
+                                </Frame>
+                                <Label Text="{Binding Name}" FontSize="8" HorizontalTextAlignment="Center" 
+                                       LineBreakMode="TailTruncation" TextColor="{StaticResource TextSecondary}" />
+                            </VerticalStackLayout>
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <CollectionView Grid.Column="1" ItemsSource="{Binding FilteredChannels}"
+                            SelectedItem="{Binding SelectedChannel}"
+                            SelectionMode="Single"
+                            Padding="10"
+                            RemainingItemsThreshold="5">
+                <CollectionView.ItemsLayout>
+                    <LinearItemsLayout Orientation="Vertical" ItemSpacing="10" />
+                </CollectionView.ItemsLayout>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="models:Channel">
+                        <Frame Style="{StaticResource CardFrame}">
+                            <Grid ColumnDefinitions="50, *, Auto" ColumnSpacing="12">
+                                <Frame Grid.Column="0" CornerRadius="8" Padding="0" HeightRequest="50" WidthRequest="50" 
+                                       BackgroundColor="{StaticResource Background}" BorderColor="Transparent">
+                                    <Image Source="{Binding LogoUrl}" Aspect="AspectFit" Margin="5" />
+                                </Frame>
+
+                                <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="2">
+                                    <Label Text="{Binding Name}" FontAttributes="Bold" FontSize="14" LineBreakMode="TailTruncation" />
+                                    <VerticalStackLayout IsVisible="{Binding CurrentProgram, Converter={StaticResource NullToVisibilityConverter}, ConverterParameter=Invert}">
+                                        <Label Text="{Binding CurrentProgram.Title}" FontSize="11" TextColor="{StaticResource Accent}" LineBreakMode="TailTruncation" />
+                                        <ProgressBar Progress="{Binding CurrentProgram.Progress, Converter={StaticResource ProgressConverter}}" 
+                                                     ProgressColor="{StaticResource Accent}" HeightRequest="2" Margin="0,2" />
+                                    </VerticalStackLayout>
+                                    <Label Text="{Binding Group}" FontSize="10" TextColor="{StaticResource TextSecondary}" />
+                                </VerticalStackLayout>
+
+                                <ImageButton Grid.Column="2" Source="star.png" WidthRequest="24" HeightRequest="24"
+                                             Command="{Binding Source={RelativeSource AncestorType={x:Type vm:LiveTvViewModel}}, Path=ToggleFavoriteCommand}"
+                                             CommandParameter="{Binding .}"
+                                             VerticalOptions="Center">
+                                    <ImageButton.Style>
+                                        <Style TargetType="ImageButton">
+                                            <Setter Property="Opacity" Value="0.2" />
+                                            <Style.Triggers>
+                                                <DataTrigger TargetType="ImageButton" Binding="{Binding IsFavorite}" Value="True">
+                                                    <Setter Property="Opacity" Value="1" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </ImageButton.Style>
+                                </ImageButton>
+                            </Grid>
+                        </Frame>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </Grid>
+    </Grid>
+</ContentPage>

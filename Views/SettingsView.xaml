@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:NovaStreamMobile.ViewModels"
+             x:Class="NovaStreamMobile.Views.SettingsView"
+             BackgroundColor="{StaticResource Background}"
+             Title="Settings">
+
+    <ContentPage.BindingContext>
+        <vm:SettingsViewModel />
+    </ContentPage.BindingContext>
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="20">
+            <Label Text="APPLICATION SETTINGS" Style="{StaticResource TitleLabel}" />
+
+            <Frame Style="{StaticResource CardFrame}">
+                <VerticalStackLayout Spacing="15">
+                    <Label Text="Storage &amp; Cache" FontAttributes="Bold" FontSize="16" />
+                    <Label Text="Manage your local data and image cache to free up space." 
+                           TextColor="{StaticResource TextSecondary}" FontSize="12" />
+                    
+                    <Button Text="CLEAR IMAGE CACHE" 
+                            Command="{Binding ClearCacheCommand}"
+                            BackgroundColor="#CC3333" 
+                            TextColor="White" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <Frame Style="{StaticResource CardFrame}">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="About NovaStream" FontAttributes="Bold" FontSize="16" />
+                    <Label Text="Version 1.0.0" TextColor="{StaticResource TextSecondary}" />
+                    <Label Text="A clean and legal IPTV player for Android." TextColor="{StaticResource TextSecondary}" />
+                </VerticalStackLayout>
+            </Frame>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

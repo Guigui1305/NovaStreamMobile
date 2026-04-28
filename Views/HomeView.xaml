@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:NovaStreamMobile.ViewModels"
+             x:Class="NovaStreamMobile.Views.HomeView"
+             BackgroundColor="{StaticResource Background}"
+             Title="NovaStream">
+
+    <ContentPage.BindingContext>
+        <vm:HomeViewModel />
+    </ContentPage.BindingContext>
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="30">
+            <!-- Header -->
+            <VerticalStackLayout Spacing="5" HorizontalOptions="Center">
+                <Label Text="NovaStream" FontSize="32" FontAttributes="Bold" TextColor="{StaticResource Primary}" HorizontalTextAlignment="Center" />
+                <Label Text="Your Personal IPTV Hub" TextColor="{StaticResource TextSecondary}" HorizontalTextAlignment="Center" />
+            </VerticalStackLayout>
+
+            <!-- Recent Channels Section -->
+            <VerticalStackLayout Spacing="15">
+                <Label Text="RECENTLY WATCHED" Style="{StaticResource TitleLabel}" />
+                
+                <CollectionView ItemsSource="{Binding RecentUrls}">
+                    <CollectionView.EmptyView>
+                        <Label Text="No recent channels yet." HorizontalTextAlignment="Center" TextColor="Gray" Margin="0,20" />
+                    </CollectionView.EmptyView>
+                    <CollectionView.ItemsLayout>
+                        <LinearItemsLayout Orientation="Vertical" ItemSpacing="10" />
+                    </CollectionView.ItemsLayout>
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Frame Style="{StaticResource CardFrame}">
+                                <Grid ColumnDefinitions="Auto, *">
+                                    <Label Grid.Column="0" Text="📺" FontSize="20" VerticalOptions="Center" Margin="0,0,15,0" />
+                                    <Label Grid.Column="1" Text="{Binding .}" FontSize="14" VerticalOptions="Center" LineBreakMode="TailTruncation" />
+                                </Grid>
+                            </Frame>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </VerticalStackLayout>
+
+            <!-- Quick Stats / Info -->
+            <Frame Style="{StaticResource CardFrame}">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Welcome back!" FontAttributes="Bold" FontSize="18" />
+                    <Label Text="Ready to watch your favorite streams? Head over to the Live TV tab to start." 
+                           TextColor="{StaticResource TextSecondary}" />
+                </VerticalStackLayout>
+            </Frame>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

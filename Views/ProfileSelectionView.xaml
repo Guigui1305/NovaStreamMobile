@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:NovaStreamMobile.ViewModels"
+             x:Class="NovaStreamMobile.Views.ProfileSelectionView"
+             BackgroundColor="{StaticResource Background}"
+             Shell.NavBarIsVisible="False">
+
+    <ContentPage.BindingContext>
+        <vm:ProfileViewModel />
+    </ContentPage.BindingContext>
+
+    <Grid RowDefinitions="*, Auto, 2*" Padding="20">
+        
+        <!-- Header -->
+        <VerticalStackLayout Grid.Row="0" VerticalOptions="Center" Spacing="10">
+            <Label Text="NovaStream" FontSize="40" FontAttributes="Bold" TextColor="{StaticResource Primary}" HorizontalOptions="Center" />
+            <Label Text="Who's watching?" FontSize="20" TextColor="White" HorizontalOptions="Center" />
+        </VerticalStackLayout>
+
+        <!-- Profiles List -->
+        <CollectionView Grid.Row="2" 
+                        ItemsSource="{Binding Profiles}" 
+                        SelectedItem="{Binding SelectedProfile}"
+                        SelectionMode="Single"
+                        HorizontalOptions="Center">
+            <CollectionView.ItemsLayout>
+                <GridItemsLayout Orientation="Vertical" Span="2" VerticalItemSpacing="30" HorizontalItemSpacing="30" />
+            </CollectionView.ItemsLayout>
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <VerticalStackLayout Spacing="10" WidthRequest="120">
+                        <Frame CornerRadius="60" HeightRequest="120" WidthRequest="120" Padding="0" BorderColor="Transparent" BackgroundColor="{StaticResource Surface}">
+                            <Image Source="{Binding AvatarSource}" Aspect="AspectFill" />
+                        </Frame>
+                        <Label Text="{Binding Name}" HorizontalOptions="Center" FontSize="16" FontAttributes="Bold" TextColor="White" />
+                        <Label Text="🔒" IsVisible="{Binding IsLocked}" HorizontalOptions="Center" FontSize="12" />
+                    </VerticalStackLayout>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+        <!-- Add Profile Button -->
+        <Button Grid.Row="1" Text="Manage Profiles" 
+                BackgroundColor="Transparent" BorderColor="{StaticResource Primary}" BorderWidth="1"
+                TextColor="{StaticResource Primary}" CornerRadius="20" WidthRequest="200"
+                Command="{Binding ManageProfilesCommand}" Margin="0,0,0,40" />
+
+    </Grid>
+</ContentPage>
