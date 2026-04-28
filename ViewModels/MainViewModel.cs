@@ -55,6 +55,7 @@ namespace NovaStreamMobile.ViewModels
         private List<Program> _allPrograms = new List<Program>();
         private SubtitleTrack? _selectedSubtitle;
         private CancellationTokenSource? _searchCts;
+        private Dictionary<string, string> _categoryMap = new Dictionary<string, string>();
 
         private string _searchText = string.Empty;
         private string _selectedCategory = "Toutes";
@@ -206,6 +207,12 @@ namespace NovaStreamMobile.ViewModels
             StopCommand = new Command(() => MediaPlayer?.Stop());
             NextChannelCommand = new Command(ZappingNext);
             PreviousChannelCommand = new Command(ZappingPrevious);
+
+            // Auto-selectionner la premiere source au demarrage
+            if (Sources.Count > 0)
+            {
+                SelectedSource = Sources[0];
+            }
         }
 
         private void SaveResumePosition()
@@ -268,12 +275,38 @@ namespace NovaStreamMobile.ViewModels
                 List<Channel> result;
                 if (source.Type == SourceType.Xtream)
                 {
+                    // Charger les categories pour mapper les IDs aux noms
+                    try
+                    {
+                        var cats = await _xtreamService.GetLiveCategoriesAsync(source);
+                        _categoryMap.Clear();
+                        foreach (var cat in cats)
+                            _categoryMap[cat.CategoryId] = cat.CategoryName;
+                    }
+                    catch { }
+
                     result = await _xtreamService.GetLiveStreamsAsync(source);
+
+                    // Mapper les IDs de categories aux noms
+                    foreach (var channel in result)
+                    {
+                        if (_categoryMap.TryGetValue(channel.Group, out string? catName) && !string.IsNullOrEmpty(catName))
+                            channel.Group = catName;
+                    }
+
+                    // Charger EPG en arriere-plan (ne pas bloquer)
                     string epgUrl = source.GetEpgUrl();
                     if (!string.IsNullOrEmpty(epgUrl))
                     {
-                        try { _allPrograms = await _epgService.ParseFromUrlAsync(epgUrl); }
-                        catch { }
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                _allPrograms = await _epgService.ParseFromUrlAsync(epgUrl);
+                                MainThread.BeginInvokeOnMainThread(ApplyFilters);
+                            }
+                            catch { }
+                        });
                     }
                 }
                 else
@@ -283,28 +316,22 @@ namespace NovaStreamMobile.ViewModels
                 }
 
                 _allChannels = result;
-                var cats = _allChannels.Select(c => c.Group).Where(g => !string.IsNullOrEmpty(g)).Distinct().OrderBy(g => g);
-                foreach (var cat in cats) Categories.Add(cat);
+                var catNames = _allChannels
+                    .Select(c => c.Group)
+                    .Where(g => !string.IsNullOrEmpty(g))
+                    .Distinct()
+                    .OrderBy(g => g);
+                foreach (var cat in catNames)
+                    Categories.Add(cat);
 
                 ApplyFilters();
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"LoadChannels error: {ex.Message}");
+            }
 
             IsLoading = false;
-
-            _ = Task.Run(async () =>
-            {
-                foreach (var channel in _allChannels.Where(c => !string.IsNullOrEmpty(c.LogoUrl)))
-                {
-                    try
-                    {
-                        string cachedPath = await _imageCacheService.GetCachedImagePathAsync(channel.LogoUrl);
-                        if (cachedPath != channel.LogoUrl)
-                            channel.LogoUrl = cachedPath;
-                    }
-                    catch { }
-                }
-            });
         }
 
         private void ApplyFilters()
@@ -319,7 +346,7 @@ namespace NovaStreamMobile.ViewModels
                 filtered = filtered.Where(c => c.Group == SelectedCategory);
 
             FilteredChannels.Clear();
-            foreach (var channel in filtered)
+            foreach (var channel in filtered.Take(200))
             {
                 channel.IsFavorite = _favoriteUrls.Contains(channel.Url);
                 channel.CurrentProgram = _allPrograms.FirstOrDefault(p =>
