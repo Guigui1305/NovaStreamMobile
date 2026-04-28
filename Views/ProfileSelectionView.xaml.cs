@@ -10,6 +10,7 @@ namespace NovaStreamMobile.Views
     {
         private readonly StorageService _storageService;
         private ObservableCollection<UserProfile> _profiles = new();
+        private bool _isNavigating = false;
 
         public ProfileSelectionView()
         {
@@ -70,42 +71,53 @@ namespace NovaStreamMobile.Views
             await DisplayAlert("Succes", $"Profil '{name.Trim()}' cree !", "OK");
         }
 
-        private async void OnProfileSelected(object? sender, SelectionChangedEventArgs e)
+        private async void OnProfileTapped(object? sender, TappedEventArgs e)
         {
-            if (e.CurrentSelection.Count == 0)
-                return;
+            if (_isNavigating) return;
 
-            var profile = e.CurrentSelection[0] as UserProfile;
-            if (profile == null)
-                return;
+            var frame = sender as Frame;
+            if (frame?.BindingContext is not UserProfile profile) return;
 
-            ProfilesCollection.SelectedItem = null;
+            _isNavigating = true;
 
-            if (profile.IsLocked)
+            try
             {
-                string? enteredPin = await DisplayPromptAsync(
-                    "Profil verrouille",
-                    $"Entrez le code PIN pour {profile.Name} :",
-                    "Deverrouiller",
-                    "Annuler",
-                    "PIN",
-                    maxLength: 4,
-                    keyboard: Keyboard.Numeric);
-
-                if (enteredPin != profile.PinCode)
+                if (profile.IsLocked)
                 {
-                    await DisplayAlert("Erreur", "Code PIN incorrect", "OK");
-                    return;
+                    string? enteredPin = await DisplayPromptAsync(
+                        "Profil verrouille",
+                        $"Entrez le code PIN pour {profile.Name} :",
+                        "Deverrouiller",
+                        "Annuler",
+                        "PIN",
+                        maxLength: 4,
+                        keyboard: Keyboard.Numeric);
+
+                    if (enteredPin != profile.PinCode)
+                    {
+                        await DisplayAlert("Erreur", "Code PIN incorrect", "OK");
+                        _isNavigating = false;
+                        return;
+                    }
+                }
+
+                _storageService.SetCurrentProfile(profile);
+                profile.LastUsed = DateTime.Now;
+                _storageService.SaveProfiles(new System.Collections.Generic.List<UserProfile>(_profiles));
+
+                // Navigation vers le Shell principal
+                var shell = new AppShell();
+                if (Application.Current != null)
+                {
+                    Application.Current.MainPage = shell;
                 }
             }
-
-            _storageService.SetCurrentProfile(profile);
-            profile.LastUsed = DateTime.Now;
-            _storageService.SaveProfiles(new System.Collections.Generic.List<UserProfile>(_profiles));
-
-            if (Application.Current?.Windows.Count > 0)
+            catch (Exception ex)
             {
-                Application.Current.Windows[0].Page = new AppShell();
+                await DisplayAlert("Erreur de navigation",
+                    $"Impossible d'ouvrir l'application :\n{ex.GetType().Name}\n{ex.Message}\n\n{ex.InnerException?.Message}",
+                    "OK");
+                _isNavigating = false;
             }
         }
 

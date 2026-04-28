@@ -23,9 +23,9 @@ namespace NovaStreamMobile.Views
 
         private void OnChangeProfileClicked(object? sender, EventArgs e)
         {
-            if (Application.Current?.Windows.Count > 0)
+            if (Application.Current != null)
             {
-                Application.Current.Windows[0].Page = new ProfileSelectionView();
+                Application.Current.MainPage = new ProfileSelectionView();
             }
         }
 
@@ -83,9 +83,9 @@ namespace NovaStreamMobile.Views
                 Preferences.Clear();
                 await DisplayAlert("Succes", "Toutes les donnees ont ete supprimees.", "OK");
 
-                if (Application.Current?.Windows.Count > 0)
+                if (Application.Current != null)
                 {
-                    Application.Current.Windows[0].Page = new ProfileSelectionView();
+                    Application.Current.MainPage = new ProfileSelectionView();
                 }
             }
         }

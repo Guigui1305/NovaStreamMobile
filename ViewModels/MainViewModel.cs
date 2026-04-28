@@ -507,9 +507,9 @@ namespace NovaStreamMobile.ViewModels
         private void SelectProfile(UserProfile profile)
         {
             _storageService.SetCurrentProfile(profile);
-            if (Application.Current?.Windows.Count > 0)
+            if (Application.Current != null)
             {
-                Application.Current.Windows[0].Page = new AppShell();
+                Application.Current.MainPage = new AppShell();
             }
         }
     }

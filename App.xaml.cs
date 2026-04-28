@@ -10,6 +10,7 @@ namespace NovaStreamMobile
         {
             InitializeComponent();
             EnsureDefaultSource();
+            MainPage = new ProfileSelectionView();
         }
 
         private void EnsureDefaultSource()
@@ -38,7 +39,7 @@ namespace NovaStreamMobile
         {
             try
             {
-                return new Window(new ProfileSelectionView());
+                return new Window(MainPage ?? new ProfileSelectionView());
             }
             catch (Exception ex)
             {
