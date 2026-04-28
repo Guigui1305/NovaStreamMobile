@@ -1,39 +1,87 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             xmlns:vm="clr-namespace:NovaStreamMobile.ViewModels"
              x:Class="NovaStreamMobile.Views.SettingsView"
              BackgroundColor="{StaticResource Background}"
-             Title="Settings">
-
-    <ContentPage.BindingContext>
-        <vm:SettingsViewModel />
-    </ContentPage.BindingContext>
+             Title="Reglages">
 
     <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="20">
-            <Label Text="APPLICATION SETTINGS" Style="{StaticResource TitleLabel}" />
+        <VerticalStackLayout Padding="16" Spacing="16">
 
+            <Label Text="REGLAGES" FontSize="22" FontAttributes="Bold" TextColor="White" Margin="0,8,0,0" />
+
+            <!-- Section Compte -->
             <Frame Style="{StaticResource CardFrame}">
-                <VerticalStackLayout Spacing="15">
-                    <Label Text="Storage &amp; Cache" FontAttributes="Bold" FontSize="16" />
-                    <Label Text="Manage your local data and image cache to free up space." 
-                           TextColor="{StaticResource TextSecondary}" FontSize="12" />
-                    
-                    <Button Text="CLEAR IMAGE CACHE" 
-                            Command="{Binding ClearCacheCommand}"
-                            BackgroundColor="#CC3333" 
-                            TextColor="White" />
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="COMPTE" FontSize="12" FontAttributes="Bold" TextColor="{StaticResource Primary}" />
+                    <Button Text="Changer de profil" BackgroundColor="{StaticResource SurfaceLight}" TextColor="White"
+                            CornerRadius="8" HeightRequest="44" FontSize="13"
+                            Clicked="OnChangeProfileClicked" />
                 </VerticalStackLayout>
             </Frame>
 
+            <!-- Section Lecteur -->
             <Frame Style="{StaticResource CardFrame}">
-                <VerticalStackLayout Spacing="10">
-                    <Label Text="About NovaStream" FontAttributes="Bold" FontSize="16" />
-                    <Label Text="Version 1.0.0" TextColor="{StaticResource TextSecondary}" />
-                    <Label Text="A clean and legal IPTV player for Android." TextColor="{StaticResource TextSecondary}" />
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="LECTEUR VIDEO" FontSize="12" FontAttributes="Bold" TextColor="{StaticResource Primary}" />
+
+                    <Grid ColumnDefinitions="*, Auto">
+                        <Label Text="Sous-titres automatiques" VerticalOptions="Center" TextColor="White" />
+                        <Switch x:Name="AutoSubSwitch" OnColor="{StaticResource Primary}" />
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*, Auto">
+                        <Label Text="Reprise de la lecture" VerticalOptions="Center" TextColor="White" />
+                        <Switch x:Name="ResumeSwitch" IsToggled="True" OnColor="{StaticResource Primary}" />
+                    </Grid>
                 </VerticalStackLayout>
             </Frame>
+
+            <!-- Section EPG -->
+            <Frame Style="{StaticResource CardFrame}">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="GUIDE DES PROGRAMMES (EPG)" FontSize="12" FontAttributes="Bold" TextColor="{StaticResource Primary}" />
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="URL du guide EPG (XMLTV)" TextColor="{StaticResource TextSecondary}" FontSize="12" />
+                        <Entry x:Name="EpgUrlEntry" Placeholder="http://exemple.com/epg.xml" 
+                               TextColor="White" PlaceholderColor="{StaticResource TextMuted}" 
+                               BackgroundColor="{StaticResource SurfaceLight}" />
+                    </VerticalStackLayout>
+
+                    <Button Text="Mettre a jour le guide" BackgroundColor="{StaticResource Accent}" TextColor="White"
+                            CornerRadius="8" HeightRequest="44" FontSize="13"
+                            Clicked="OnUpdateEpgClicked" />
+
+                    <Label x:Name="EpgStatusLabel" Text="" TextColor="{StaticResource TextMuted}" FontSize="11" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Section Cache -->
+            <Frame Style="{StaticResource CardFrame}">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="STOCKAGE" FontSize="12" FontAttributes="Bold" TextColor="{StaticResource Primary}" />
+
+                    <Button Text="Vider le cache des logos" BackgroundColor="{StaticResource SurfaceLight}" TextColor="White"
+                            CornerRadius="8" HeightRequest="44" FontSize="13"
+                            Clicked="OnClearCacheClicked" />
+
+                    <Button Text="Supprimer toutes les donnees" BackgroundColor="#40E50914" TextColor="{StaticResource Primary}"
+                            CornerRadius="8" HeightRequest="44" FontSize="13"
+                            Clicked="OnClearAllDataClicked" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Section A propos -->
+            <Frame Style="{StaticResource CardFrame}" Margin="0,0,0,30">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="A PROPOS" FontSize="12" FontAttributes="Bold" TextColor="{StaticResource Primary}" />
+                    <Label Text="NovaStream v2.0" TextColor="White" FontSize="14" />
+                    <Label Text="Lecteur IPTV premium pour Android" TextColor="{StaticResource TextMuted}" FontSize="12" />
+                    <Label Text="Propulse par LibVLC et .NET MAUI" TextColor="{StaticResource TextMuted}" FontSize="12" />
+                </VerticalStackLayout>
+            </Frame>
+
         </VerticalStackLayout>
     </ScrollView>
 </ContentPage>

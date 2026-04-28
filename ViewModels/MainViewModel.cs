@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using NovaStreamMobile.Models;
@@ -41,9 +42,11 @@ namespace NovaStreamMobile.ViewModels
         private readonly XmlTvParserService _epgService;
         private readonly XtreamService _xtreamService;
         private readonly ImageCacheService _imageCacheService;
-        
+
         private bool _isLoading;
         private bool _isPlaying;
+        private bool _hasChannel;
+        private string _currentChannelName = "";
         private int _volume = 100;
         private MediaSource? _selectedSource;
         private Channel? _selectedChannel;
@@ -51,10 +54,14 @@ namespace NovaStreamMobile.ViewModels
         private List<string> _historyUrls;
         private List<Program> _allPrograms = new List<Program>();
         private SubtitleTrack? _selectedSubtitle;
-        
+        private CancellationTokenSource? _searchCts;
+
         private string _searchText = string.Empty;
-        private string _selectedCategory = "All";
+        private string _selectedCategory = "Toutes";
         private List<Channel> _allChannels = new List<Channel>();
+
+        // Reprise de lecture : URL -> position en ms
+        private Dictionary<string, long> _resumePositions = new Dictionary<string, long>();
 
         public LibVLC? LibVLC { get; private set; }
         public MediaPlayer? MediaPlayer { get; private set; }
@@ -66,7 +73,9 @@ namespace NovaStreamMobile.ViewModels
 
         public bool IsLoading { get => _isLoading; set => SetProperty(ref _isLoading, value); }
         public bool IsPlaying { get => _isPlaying; set => SetProperty(ref _isPlaying, value); }
-        
+        public bool HasChannel { get => _hasChannel; set => SetProperty(ref _hasChannel, value); }
+        public string CurrentChannelName { get => _currentChannelName; set => SetProperty(ref _currentChannelName, value); }
+
         public int Volume
         {
             get => _volume;
@@ -86,7 +95,14 @@ namespace NovaStreamMobile.ViewModels
             {
                 if (SetProperty(ref _searchText, value))
                 {
-                    Task.Delay(300).ContinueWith(_ => MainThread.BeginInvokeOnMainThread(ApplyFilters));
+                    _searchCts?.Cancel();
+                    _searchCts = new CancellationTokenSource();
+                    var token = _searchCts.Token;
+                    Task.Delay(300, token).ContinueWith(_ =>
+                    {
+                        if (!token.IsCancellationRequested)
+                            MainThread.BeginInvokeOnMainThread(ApplyFilters);
+                    }, TaskContinuationOptions.OnlyOnRanToCompletion);
                 }
             }
         }
@@ -153,24 +169,54 @@ namespace NovaStreamMobile.ViewModels
             _favoriteUrls = _storageService.LoadFavorites();
             _historyUrls = _storageService.LoadHistory();
             Sources = new ObservableCollection<MediaSource>(_storageService.LoadSources());
-            
-            LibVLC = new LibVLC();
-            MediaPlayer = new MediaPlayer(LibVLC);
-            
-            MediaPlayer.Playing += (s, e) => { IsPlaying = true; UpdateSubtitles(); };
-            MediaPlayer.Paused += (s, e) => IsPlaying = false;
-            MediaPlayer.Stopped += (s, e) => IsPlaying = false;
+
+            try
+            {
+                LibVLC = new LibVLC("--no-osd");
+                MediaPlayer = new MediaPlayer(LibVLC);
+                MediaPlayer.Playing += (s, e) =>
+                {
+                    MainThread.BeginInvokeOnMainThread(() =>
+                    {
+                        IsPlaying = true;
+                        UpdateSubtitles();
+                    });
+                };
+                MediaPlayer.Paused += (s, e) => MainThread.BeginInvokeOnMainThread(() => IsPlaying = false);
+                MediaPlayer.Stopped += (s, e) => MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    IsPlaying = false;
+                    HasChannel = false;
+                    CurrentChannelName = "";
+                });
+                MediaPlayer.PositionChanged += (s, e) => SaveResumePosition();
+            }
+            catch
+            {
+                // LibVLC init failed
+            }
 
             ToggleFavoriteCommand = new Command<Channel>(ToggleFavorite);
-            PlayPauseCommand = new Command(() => {
+            PlayPauseCommand = new Command(() =>
+            {
                 if (MediaPlayer == null) return;
                 if (MediaPlayer.IsPlaying) MediaPlayer.Pause();
                 else MediaPlayer.Play();
             });
             StopCommand = new Command(() => MediaPlayer?.Stop());
-            
             NextChannelCommand = new Command(ZappingNext);
             PreviousChannelCommand = new Command(ZappingPrevious);
+        }
+
+        private void SaveResumePosition()
+        {
+            if (SelectedChannel == null || MediaPlayer == null) return;
+            if (!Preferences.Get("resume_enabled", true)) return;
+            long time = MediaPlayer.Time;
+            if (time > 5000)
+            {
+                _resumePositions[SelectedChannel.Url] = time;
+            }
         }
 
         private void ZappingNext()
@@ -192,12 +238,18 @@ namespace NovaStreamMobile.ViewModels
         private void UpdateSubtitles()
         {
             if (MediaPlayer == null) return;
-            MainThread.BeginInvokeOnMainThread(() => {
+            try
+            {
                 Subtitles.Clear();
-                foreach (var track in MediaPlayer.SpuDescription)
-                    Subtitles.Add(new SubtitleTrack { Id = track.Id, Name = track.Name });
+                var tracks = MediaPlayer.SpuDescription;
+                if (tracks != null)
+                {
+                    foreach (var track in tracks)
+                        Subtitles.Add(new SubtitleTrack { Id = track.Id, Name = track.Name ?? $"Piste {track.Id}" });
+                }
                 SelectedSubtitle = Subtitles.FirstOrDefault(t => t.Id == MediaPlayer.Spu);
-            });
+            }
+            catch { }
         }
 
         private async Task LoadChannelsAsync(MediaSource source)
@@ -206,37 +258,51 @@ namespace NovaStreamMobile.ViewModels
             _allChannels.Clear();
             FilteredChannels.Clear();
             Categories.Clear();
-            Categories.Add("All");
-            Categories.Add("* Favorites");
-            SelectedCategory = "All";
+            Categories.Add("Toutes");
+            Categories.Add("Favoris");
+            SelectedCategory = "Toutes";
             SearchText = string.Empty;
-            
-            List<Channel> result;
-            if (source.Type == SourceType.Xtream)
-            {
-                result = await _xtreamService.GetLiveStreamsAsync(source);
-            }
-            else
-            {
-                if (source.Url.Contains(".xml")) _allPrograms = await _epgService.ParseFromUrlAsync(source.Url);
-                result = await _parserService.ParseFromUrlAsync(source.Url);
-            }
 
-            _allChannels = result;
-            var cats = _allChannels.Select(c => c.Group).Distinct().OrderBy(g => g);
-            foreach (var cat in cats) Categories.Add(cat);
+            try
+            {
+                List<Channel> result;
+                if (source.Type == SourceType.Xtream)
+                {
+                    result = await _xtreamService.GetLiveStreamsAsync(source);
+                    string epgUrl = source.GetEpgUrl();
+                    if (!string.IsNullOrEmpty(epgUrl))
+                    {
+                        try { _allPrograms = await _epgService.ParseFromUrlAsync(epgUrl); }
+                        catch { }
+                    }
+                }
+                else
+                {
+                    string m3uUrl = source.GetM3UUrl();
+                    result = await _parserService.ParseFromUrlAsync(m3uUrl);
+                }
 
-            ApplyFilters();
+                _allChannels = result;
+                var cats = _allChannels.Select(c => c.Group).Where(g => !string.IsNullOrEmpty(g)).Distinct().OrderBy(g => g);
+                foreach (var cat in cats) Categories.Add(cat);
+
+                ApplyFilters();
+            }
+            catch { }
+
             IsLoading = false;
 
-            _ = Task.Run(async () => {
+            _ = Task.Run(async () =>
+            {
                 foreach (var channel in _allChannels.Where(c => !string.IsNullOrEmpty(c.LogoUrl)))
                 {
-                    string cachedPath = await _imageCacheService.GetCachedImagePathAsync(channel.LogoUrl);
-                    if (cachedPath != channel.LogoUrl)
+                    try
                     {
-                        channel.LogoUrl = cachedPath;
+                        string cachedPath = await _imageCacheService.GetCachedImagePathAsync(channel.LogoUrl);
+                        if (cachedPath != channel.LogoUrl)
+                            channel.LogoUrl = cachedPath;
                     }
+                    catch { }
                 }
             });
         }
@@ -246,18 +312,18 @@ namespace NovaStreamMobile.ViewModels
             var filtered = _allChannels.AsEnumerable();
             if (!string.IsNullOrWhiteSpace(SearchText))
                 filtered = filtered.Where(c => c.Name.Contains(SearchText, StringComparison.OrdinalIgnoreCase));
-            
-            if (SelectedCategory == "* Favorites")
+
+            if (SelectedCategory == "Favoris")
                 filtered = filtered.Where(c => _favoriteUrls.Contains(c.Url));
-            else if (SelectedCategory != "All")
+            else if (SelectedCategory != "Toutes")
                 filtered = filtered.Where(c => c.Group == SelectedCategory);
 
             FilteredChannels.Clear();
             foreach (var channel in filtered)
             {
                 channel.IsFavorite = _favoriteUrls.Contains(channel.Url);
-                channel.CurrentProgram = _allPrograms.FirstOrDefault(p => 
-                    p.ChannelId == channel.EpgId && 
+                channel.CurrentProgram = _allPrograms.FirstOrDefault(p =>
+                    p.ChannelId == channel.EpgId &&
                     DateTime.Now >= p.StartTime && DateTime.Now <= p.EndTime);
                 FilteredChannels.Add(channel);
             }
@@ -270,34 +336,53 @@ namespace NovaStreamMobile.ViewModels
             else _favoriteUrls.Add(channel.Url);
             channel.IsFavorite = _favoriteUrls.Contains(channel.Url);
             _storageService.SaveFavorites(_favoriteUrls);
-            
-            if (SelectedCategory == "* Favorites") ApplyFilters();
+            if (SelectedCategory == "Favoris") ApplyFilters();
         }
 
         private void PlayChannel(Channel channel)
         {
             if (MediaPlayer == null || LibVLC == null) return;
-            
-            // Add to history
+
+            HasChannel = true;
+            CurrentChannelName = channel.Name;
+
             if (_historyUrls.Contains(channel.Url)) _historyUrls.Remove(channel.Url);
             _historyUrls.Insert(0, channel.Url);
+            if (_historyUrls.Count > 50) _historyUrls = _historyUrls.Take(50).ToList();
             _storageService.SaveHistory(_historyUrls);
 
             Subtitles.Clear();
             using var media = new Media(LibVLC, new Uri(channel.Url));
             MediaPlayer.Play(media);
+
+            if (Preferences.Get("resume_enabled", true) && _resumePositions.ContainsKey(channel.Url))
+            {
+                long pos = _resumePositions[channel.Url];
+                Task.Delay(1000).ContinueWith(_ =>
+                {
+                    MainThread.BeginInvokeOnMainThread(() =>
+                    {
+                        if (MediaPlayer.IsPlaying)
+                            MediaPlayer.Time = pos;
+                    });
+                });
+            }
         }
     }
 
     public class HomeViewModel : ViewModelBase
     {
         private readonly StorageService _storageService;
-        public ObservableCollection<string> RecentUrls { get; }
+        public ObservableCollection<string> RecentChannels { get; }
+        public int SourceCount { get; }
+        public int FavoriteCount { get; }
 
         public HomeViewModel()
         {
             _storageService = new StorageService();
-            RecentUrls = new ObservableCollection<string>(_storageService.LoadHistory());
+            RecentChannels = new ObservableCollection<string>(_storageService.LoadHistory().Take(10));
+            SourceCount = _storageService.LoadSources().Count;
+            FavoriteCount = _storageService.LoadFavorites().Count;
         }
     }
 
@@ -309,7 +394,8 @@ namespace NovaStreamMobile.ViewModels
         public SettingsViewModel()
         {
             _imageCacheService = new ImageCacheService();
-            ClearCacheCommand = new Command(() => {
+            ClearCacheCommand = new Command(() =>
+            {
                 _imageCacheService.ClearCache();
             });
         }
@@ -330,15 +416,17 @@ namespace NovaStreamMobile.ViewModels
         public string Username { get => _username; set => SetProperty(ref _username, value); }
         public string Password { get => _password; set => SetProperty(ref _password, value); }
         public string StatusMessage { get => _statusMessage; set => SetProperty(ref _statusMessage, value); }
-        public SourceType SelectedType 
-        { 
-            get => _selectedType; 
-            set { 
-                if (SetProperty(ref _selectedType, value)) {
+        public SourceType SelectedType
+        {
+            get => _selectedType;
+            set
+            {
+                if (SetProperty(ref _selectedType, value))
+                {
                     OnPropertyChanged(nameof(IsM3U));
                     OnPropertyChanged(nameof(IsXtream));
                 }
-            } 
+            }
         }
 
         public bool IsM3U => SelectedType == SourceType.M3U;
@@ -347,23 +435,38 @@ namespace NovaStreamMobile.ViewModels
 
         public ObservableCollection<MediaSource> Sources { get; }
         public ICommand AddSourceCommand { get; }
+        public ICommand DeleteSourceCommand { get; }
 
         public SourcesViewModel()
         {
             _storageService = new StorageService();
             Sources = new ObservableCollection<MediaSource>(_storageService.LoadSources());
-            AddSourceCommand = new Command(() => {
-                var newSource = new MediaSource { 
-                    Name = SourceName, 
-                    Url = SourceUrl, 
+            AddSourceCommand = new Command(() =>
+            {
+                if (string.IsNullOrWhiteSpace(SourceName) || string.IsNullOrWhiteSpace(SourceUrl))
+                {
+                    StatusMessage = "Veuillez remplir le nom et l'URL.";
+                    return;
+                }
+                var newSource = new MediaSource
+                {
+                    Name = SourceName,
+                    Url = SourceUrl,
                     Type = SelectedType,
                     Username = Username,
                     Password = Password
                 };
                 Sources.Add(newSource);
                 _storageService.SaveSources(new List<MediaSource>(Sources));
-                StatusMessage = "Source added!";
+                StatusMessage = "Source ajoutee avec succes !";
                 SourceName = ""; SourceUrl = ""; Username = ""; Password = "";
+            });
+            DeleteSourceCommand = new Command<MediaSource>((source) =>
+            {
+                if (source == null) return;
+                Sources.Remove(source);
+                _storageService.SaveSources(new List<MediaSource>(Sources));
+                StatusMessage = "Source supprimee.";
             });
         }
     }
@@ -394,17 +497,16 @@ namespace NovaStreamMobile.ViewModels
             var loaded = _storageService.LoadProfiles();
             if (!loaded.Any())
             {
-                loaded.Add(new UserProfile { Name = "Guest", AvatarSource = "profile_default.png" });
+                loaded.Add(new UserProfile { Name = "Invite", AvatarSource = "profile_default.png" });
                 _storageService.SaveProfiles(loaded);
             }
             Profiles = new ObservableCollection<UserProfile>(loaded);
-            ManageProfilesCommand = new Command(() => { /* Open management view */ });
+            ManageProfilesCommand = new Command(() => { });
         }
 
         private void SelectProfile(UserProfile profile)
         {
             _storageService.SetCurrentProfile(profile);
-            // Navigate to main app shell
             if (Application.Current?.Windows.Count > 0)
             {
                 Application.Current.Windows[0].Page = new AppShell();

@@ -1,90 +1,67 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             xmlns:vm="clr-namespace:NovaStreamMobile.ViewModels"
              x:Class="NovaStreamMobile.Views.SourcesView"
              BackgroundColor="{StaticResource Background}"
-             Title="Manage Sources">
+             Title="Sources">
 
-    <ContentPage.BindingContext>
-        <vm:SourcesViewModel />
-    </ContentPage.BindingContext>
-
-    <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="20">
-            <Label Text="ADD NEW SOURCE" Style="{StaticResource TitleLabel}" />
-
-            <Frame Style="{StaticResource CardFrame}" Padding="20">
-                <VerticalStackLayout Spacing="15">
-                    <VerticalStackLayout Spacing="5">
-                        <Label Text="Source Type" TextColor="{StaticResource TextSecondary}" FontSize="12" />
-                        <Picker SelectedItem="{Binding SelectedType}" ItemsSource="{Binding SourceTypes}" 
-                                BackgroundColor="{StaticResource Background}" TextColor="White" />
-                    </VerticalStackLayout>
-
-                    <VerticalStackLayout Spacing="5">
-                        <Label Text="Friendly Name" TextColor="{StaticResource TextSecondary}" FontSize="12" />
-                        <Entry Text="{Binding SourceName}" Placeholder="e.g. My Premium IPTV" />
-                    </VerticalStackLayout>
-
-                    <!-- M3U Fields -->
-                    <VerticalStackLayout IsVisible="{Binding IsM3U}" Spacing="5">
-                        <Label Text="M3U / M3U8 URL" TextColor="{StaticResource TextSecondary}" FontSize="12" />
-                        <Entry Text="{Binding SourceUrl}" Placeholder="http://your-link.com/list.m3u" />
-                    </VerticalStackLayout>
-
-                    <!-- Xtream Fields -->
-                    <VerticalStackLayout IsVisible="{Binding IsXtream}" Spacing="15">
-                        <VerticalStackLayout Spacing="5">
-                            <Label Text="Server URL" TextColor="{StaticResource TextSecondary}" FontSize="12" />
-                            <Entry Text="{Binding SourceUrl}" Placeholder="http://provider.com:8080" />
-                        </VerticalStackLayout>
-                        
-                        <Grid ColumnDefinitions="*, *" ColumnSpacing="10">
-                            <VerticalStackLayout Grid.Column="0" Spacing="5">
-                                <Label Text="Username" TextColor="{StaticResource TextSecondary}" FontSize="12" />
-                                <Entry Text="{Binding Username}" />
-                            </VerticalStackLayout>
-                            <VerticalStackLayout Grid.Column="1" Spacing="5">
-                                <Label Text="Password" TextColor="{StaticResource TextSecondary}" FontSize="12" />
-                                <Entry Text="{Binding Password}" IsPassword="True" />
-                            </VerticalStackLayout>
-                        </Grid>
-                    </VerticalStackLayout>
-
-                    <Button Text="ADD SOURCE" Command="{Binding AddSourceCommand}" 
-                            BackgroundColor="{StaticResource Primary}" TextColor="White" Margin="0,10,0,0" />
-
-                    <Label Text="{Binding StatusMessage}" TextColor="{StaticResource Accent}" 
-                           HorizontalOptions="Center" FontSize="12" />
-                </VerticalStackLayout>
-            </Frame>
-
-            <Label Text="EXISTING SOURCES" Style="{StaticResource TitleLabel}" Margin="0,10,0,0" />
+    <Grid RowDefinitions="Auto, *" Padding="16" RowSpacing="12">
+        
+        <!-- Header -->
+        <VerticalStackLayout Grid.Row="0" Spacing="12">
+            <Label Text="MES SOURCES" FontSize="22" FontAttributes="Bold" TextColor="White" />
+            <Label Text="Gerez vos sources IPTV (M3U ou Xtream Codes)" TextColor="{StaticResource TextSecondary}" FontSize="13" />
             
-            <CollectionView ItemsSource="{Binding Sources}">
-                <CollectionView.ItemTemplate>
-                    <DataTemplate>
-                        <Frame Style="{StaticResource CardFrame}" Margin="0,0,0,10">
-                            <Grid ColumnDefinitions="Auto, *, Auto" ColumnSpacing="15">
-                                <Frame Grid.Column="0" CornerRadius="20" WidthRequest="40" HeightRequest="40" 
-                                       Padding="0" BackgroundColor="{StaticResource Background}" BorderColor="Transparent">
-                                    <Label Text="{Binding Type}" HorizontalOptions="Center" VerticalOptions="Center" 
-                                           TextColor="{StaticResource Primary}" FontAttributes="Bold" />
-                                </Frame>
-                                
-                                <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
-                                    <Label Text="{Binding Name}" FontAttributes="Bold" />
-                                    <Label Text="{Binding Url}" FontSize="10" TextColor="{StaticResource TextSecondary}" LineBreakMode="TailTruncation" />
-                                </VerticalStackLayout>
-
-                                <Label Grid.Column="2" Text="{Binding Type}" FontSize="10" 
-                                       TextColor="{StaticResource TextSecondary}" VerticalOptions="Center" />
-                            </Grid>
-                        </Frame>
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
-            </CollectionView>
+            <Button Text="+ Ajouter une source" BackgroundColor="{StaticResource Primary}" TextColor="White"
+                    CornerRadius="10" HeightRequest="48" FontAttributes="Bold" FontSize="14"
+                    Clicked="OnAddSourceClicked" />
         </VerticalStackLayout>
-    </ScrollView>
+
+        <!-- Liste des sources -->
+        <CollectionView Grid.Row="1" x:Name="SourcesCollection" Margin="0,8,0,0">
+            <CollectionView.EmptyView>
+                <Frame Style="{StaticResource CardFrame}" Margin="0,20">
+                    <VerticalStackLayout Spacing="12" HorizontalOptions="Center" Padding="16">
+                        <Label Text="Aucune source configuree" FontSize="18" FontAttributes="Bold" 
+                               TextColor="{StaticResource TextSecondary}" HorizontalTextAlignment="Center" />
+                        <Label Text="Ajoutez une source M3U ou Xtream Codes pour commencer a regarder vos chaines." 
+                               TextColor="{StaticResource TextMuted}" FontSize="13" HorizontalTextAlignment="Center" />
+                    </VerticalStackLayout>
+                </Frame>
+            </CollectionView.EmptyView>
+            <CollectionView.ItemsLayout>
+                <LinearItemsLayout Orientation="Vertical" ItemSpacing="10" />
+            </CollectionView.ItemsLayout>
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Frame Style="{StaticResource CardFrame}">
+                        <Grid ColumnDefinitions="Auto, *, Auto" ColumnSpacing="12">
+                            <!-- Icone type -->
+                            <Frame Grid.Column="0" CornerRadius="20" WidthRequest="44" HeightRequest="44" 
+                                   Padding="0" BackgroundColor="{StaticResource SurfaceLight}" 
+                                   BorderColor="Transparent" HasShadow="False">
+                                <Label Text="{Binding Type}" FontSize="10" FontAttributes="Bold" 
+                                       TextColor="{StaticResource Primary}" HorizontalOptions="Center" VerticalOptions="Center" />
+                            </Frame>
+                            
+                            <!-- Info source -->
+                            <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="3">
+                                <Label Text="{Binding Name}" FontAttributes="Bold" FontSize="15" TextColor="White" />
+                                <Label Text="{Binding Url}" FontSize="11" TextColor="{StaticResource TextMuted}" 
+                                       LineBreakMode="TailTruncation" />
+                                <Label Text="{Binding DateAdded, StringFormat='Ajoutee le {0:dd/MM/yyyy}'}" 
+                                       FontSize="10" TextColor="{StaticResource TextMuted}" />
+                            </VerticalStackLayout>
+                            
+                            <!-- Bouton supprimer -->
+                            <Button Grid.Column="2" Text="X" BackgroundColor="#40E50914" TextColor="{StaticResource Primary}" 
+                                    CornerRadius="15" WidthRequest="34" HeightRequest="34" Padding="0" FontSize="12"
+                                    VerticalOptions="Center"
+                                    Clicked="OnDeleteSourceClicked" CommandParameter="{Binding .}" />
+                        </Grid>
+                    </Frame>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+    </Grid>
 </ContentPage>

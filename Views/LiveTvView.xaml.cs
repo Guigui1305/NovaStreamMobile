@@ -1,9 +1,13 @@
 using Microsoft.Maui.Controls;
+using NovaStreamMobile.Models;
+using NovaStreamMobile.ViewModels;
 using System;
 using System.Threading.Tasks;
+using LibVLCSharp.Shared;
 #if ANDROID
 using Android.App;
 using Android.Util;
+using LibVLCSharp.Platforms.Android;
 #endif
 
 namespace NovaStreamMobile.Views
@@ -13,13 +17,114 @@ namespace NovaStreamMobile.Views
         private bool _isFullscreen = false;
         private double _currentBrightness = 0.5;
         private double _startBrightness;
+        private LiveTvViewModel? _vm;
 
         public LiveTvView()
         {
             InitializeComponent();
         }
 
-        private void OnFullscreenClicked(object sender, EventArgs e)
+        protected override void OnAppearing()
+        {
+            base.OnAppearing();
+            _vm = BindingContext as LiveTvViewModel;
+            AttachVideoView();
+        }
+
+        private void AttachVideoView()
+        {
+            if (_vm?.MediaPlayer == null) return;
+
+#if ANDROID
+            try
+            {
+                var videoView = new LibVLCSharp.Platforms.Android.VideoView(
+                    Microsoft.Maui.ApplicationModel.Platform.CurrentActivity);
+                videoView.MediaPlayer = _vm.MediaPlayer;
+
+                var nativeView = new Microsoft.Maui.Controls.ContentView();
+                nativeView.Content = new Label { Text = "" }; // placeholder
+
+                // Use handler to embed native Android view
+                VideoContainer.Content = nativeView;
+
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    try
+                    {
+                        var handler = VideoContainer.Handler;
+                        if (handler?.PlatformView is Android.Views.ViewGroup container)
+                        {
+                            container.RemoveAllViews();
+                            if (videoView.Parent is Android.Views.ViewGroup oldParent)
+                                oldParent.RemoveView(videoView);
+                            container.AddView(videoView, new Android.Views.ViewGroup.LayoutParams(
+                                Android.Views.ViewGroup.LayoutParams.MatchParent,
+                                Android.Views.ViewGroup.LayoutParams.MatchParent));
+                        }
+                    }
+                    catch { }
+                });
+            }
+            catch { }
+#endif
+        }
+
+        private void OnChannelSelected(object? sender, SelectionChangedEventArgs e)
+        {
+            if (e.CurrentSelection.Count == 0) return;
+            var channel = e.CurrentSelection[0] as Channel;
+            if (channel == null) return;
+
+            if (_vm != null)
+            {
+                _vm.SelectedChannel = channel;
+                UpdatePlayPauseButton();
+            }
+
+            // Reset selection for re-tap
+            if (sender is CollectionView cv)
+                cv.SelectedItem = null;
+        }
+
+        private void UpdatePlayPauseButton()
+        {
+            if (_vm != null)
+                PlayPauseBtn.Text = _vm.IsPlaying ? "||" : ">";
+        }
+
+        private async void OnSubtitleClicked(object? sender, EventArgs e)
+        {
+            if (_vm == null || _vm.Subtitles.Count == 0)
+            {
+                await DisplayAlert("Sous-titres", "Aucun sous-titre disponible pour cette chaine.", "OK");
+                return;
+            }
+
+            string[] names = new string[_vm.Subtitles.Count];
+            for (int i = 0; i < _vm.Subtitles.Count; i++)
+                names[i] = _vm.Subtitles[i].Name;
+
+            string? result = await DisplayActionSheet("Choisir les sous-titres", "Annuler", "Desactiver", names);
+            if (result == null || result == "Annuler") return;
+
+            if (result == "Desactiver")
+            {
+                _vm.MediaPlayer?.SetSpu(-1);
+                return;
+            }
+
+            foreach (var sub in _vm.Subtitles)
+            {
+                if (sub.Name == result)
+                {
+                    _vm.SelectedSubtitle = sub;
+                    break;
+                }
+            }
+        }
+
+        private void OnFullscreenClicked(object? sender, EventArgs e)
         {
             _isFullscreen = !_isFullscreen;
             
@@ -35,13 +140,13 @@ namespace NovaStreamMobile.Views
             {
                 Shell.SetTabBarIsVisible(this, true);
                 Shell.SetNavBarIsVisible(this, true);
-                PlayerRow.Height = new GridLength(280);
+                PlayerRow.Height = new GridLength(250);
                 SearchRow.Height = GridLength.Auto;
                 ContentGrid.IsVisible = true;
             }
         }
 
-        private void OnPipClicked(object sender, EventArgs e)
+        private void OnPipClicked(object? sender, EventArgs e)
         {
 #if ANDROID
             if (OperatingSystem.IsAndroidVersionAtLeast(26))
@@ -61,12 +166,7 @@ namespace NovaStreamMobile.Views
 #endif
         }
 
-        protected override void OnAppearing()
-        {
-            base.OnAppearing();
-        }
-
-        private void OnBrightnessPanUpdated(object sender, PanUpdatedEventArgs e)
+        private void OnBrightnessPanUpdated(object? sender, PanUpdatedEventArgs e)
         {
             switch (e.StatusType)
             {
@@ -83,10 +183,14 @@ namespace NovaStreamMobile.Views
 
                 case GestureStatus.Completed:
                 case GestureStatus.Canceled:
-                    Task.Delay(1000).ContinueWith(_ => MainThread.BeginInvokeOnMainThread(() => 
+                    _ = Task.Run(async () =>
                     {
-                        BrightnessIndicator.IsVisible = false;
-                    }));
+                        await Task.Delay(1000);
+                        MainThread.BeginInvokeOnMainThread(() =>
+                        {
+                            BrightnessIndicator.IsVisible = false;
+                        });
+                    });
                     break;
             }
         }

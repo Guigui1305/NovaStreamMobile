@@ -2,62 +2,65 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="NovaStreamMobile.Views.ProfileSelectionView"
-             BackgroundColor="#0F0F0F"
+             BackgroundColor="#0A0A0A"
              NavigationPage.HasNavigationBar="False">
 
-    <Grid RowDefinitions="Auto, Auto, *, Auto" Padding="20" RowSpacing="20">
+    <Grid RowDefinitions="Auto, Auto, *, Auto" Padding="24" RowSpacing="16">
         
         <!-- Header -->
-        <VerticalStackLayout Grid.Row="0" VerticalOptions="Center" Spacing="10" Margin="0,40,0,0">
-            <Label Text="NovaStream" FontSize="40" FontAttributes="Bold" TextColor="#2196F3" HorizontalOptions="Center" />
-            <Label Text="Who's watching?" FontSize="20" TextColor="White" HorizontalOptions="Center" />
+        <VerticalStackLayout Grid.Row="0" VerticalOptions="Center" Spacing="8" Margin="0,50,0,0">
+            <Label Text="NOVASTREAM" FontSize="36" FontAttributes="Bold" TextColor="#E50914" 
+                   HorizontalOptions="Center" CharacterSpacing="4" />
+            <Label Text="Qui regarde ?" FontSize="20" TextColor="#B3B3B3" HorizontalOptions="Center" />
         </VerticalStackLayout>
 
-        <!-- Manage Profiles Button -->
-        <Button Grid.Row="1" Text="Manage Profiles" 
-                BackgroundColor="Transparent" BorderColor="#2196F3" BorderWidth="1"
-                TextColor="#2196F3" CornerRadius="20" WidthRequest="200"
+        <!-- Gerer les profils -->
+        <Button Grid.Row="1" Text="Gerer les profils" 
+                BackgroundColor="Transparent" BorderColor="#333333" BorderWidth="1"
+                TextColor="#B3B3B3" CornerRadius="20" WidthRequest="200"
+                HeightRequest="40" FontSize="13"
                 HorizontalOptions="Center"
                 Clicked="OnManageProfilesClicked" />
 
-        <!-- Profiles List -->
+        <!-- Liste des profils -->
         <CollectionView Grid.Row="2" 
                         x:Name="ProfilesCollection"
                         SelectionMode="Single"
                         SelectionChanged="OnProfileSelected"
                         HorizontalOptions="Center"
                         VerticalOptions="Start"
-                        Margin="0,10,0,0">
+                        Margin="0,16,0,0">
             <CollectionView.ItemsLayout>
-                <GridItemsLayout Orientation="Vertical" Span="2" VerticalItemSpacing="30" HorizontalItemSpacing="30" />
+                <GridItemsLayout Orientation="Vertical" Span="2" VerticalItemSpacing="24" HorizontalItemSpacing="24" />
             </CollectionView.ItemsLayout>
             <CollectionView.ItemTemplate>
                 <DataTemplate>
-                    <VerticalStackLayout Spacing="10" WidthRequest="120">
-                        <Frame CornerRadius="60" HeightRequest="120" WidthRequest="120" 
-                               Padding="0" BorderColor="Transparent" BackgroundColor="#1E1E1E"
+                    <VerticalStackLayout Spacing="8" WidthRequest="130">
+                        <Frame CornerRadius="12" HeightRequest="130" WidthRequest="130" 
+                               Padding="0" BorderColor="#333333" BackgroundColor="#1F1F1F"
                                HasShadow="False">
                             <Image Source="{Binding AvatarSource}" Aspect="AspectFill" />
                         </Frame>
                         <Label Text="{Binding Name}" HorizontalOptions="Center" 
-                               FontSize="16" FontAttributes="Bold" TextColor="White" />
-                        <Label Text="[Locked]" IsVisible="{Binding IsLocked}" 
-                               HorizontalOptions="Center" FontSize="12" TextColor="#AAAAAA" />
+                               FontSize="15" FontAttributes="Bold" TextColor="White" />
+                        <Label Text="Verrouille" IsVisible="{Binding IsLocked}" 
+                               HorizontalOptions="Center" FontSize="11" TextColor="#808080" />
                     </VerticalStackLayout>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
             <CollectionView.EmptyView>
-                <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="20">
-                    <Label Text="No profiles yet" FontSize="18" TextColor="#AAAAAA" HorizontalOptions="Center" />
-                    <Label Text="Tap 'Add Profile' below to get started" FontSize="14" TextColor="#666666" HorizontalOptions="Center" />
+                <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="16" Margin="0,40">
+                    <Label Text="Aucun profil" FontSize="20" TextColor="#B3B3B3" HorizontalOptions="Center" FontAttributes="Bold" />
+                    <Label Text="Appuyez sur 'Ajouter un profil' pour commencer" FontSize="14" TextColor="#808080" HorizontalOptions="Center" />
                 </VerticalStackLayout>
             </CollectionView.EmptyView>
         </CollectionView>
 
-        <!-- Add Profile Button -->
-        <Button Grid.Row="3" Text="+ Add Profile"
-                BackgroundColor="#2196F3" TextColor="White"
-                CornerRadius="25" HeightRequest="50" WidthRequest="200"
+        <!-- Bouton Ajouter -->
+        <Button Grid.Row="3" Text="+ Ajouter un profil"
+                BackgroundColor="#E50914" TextColor="White"
+                CornerRadius="25" HeightRequest="52" WidthRequest="220"
+                FontSize="15" FontAttributes="Bold"
                 HorizontalOptions="Center" Margin="0,0,0,30"
                 Clicked="OnAddProfileClicked" />
 
