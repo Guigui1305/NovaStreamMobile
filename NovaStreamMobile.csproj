@@ -34,6 +34,10 @@
 		<PackageReference Include="VideoLAN.LibVLC.Android" Version="3.6.0" />
 	</ItemGroup>
 
+	<ItemGroup Condition="'$(TargetFramework)' == 'net9.0-android'">
+		<AndroidResource Include="Platforms\Android\Resources\xml\network_security_config.xml" />
+	</ItemGroup>
+
 	<ItemGroup>
 		<!-- Splash Screen -->
 		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#0F0F0F" BaseSize="128,128" />

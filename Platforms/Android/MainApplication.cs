@@ -5,7 +5,11 @@ using Microsoft.Maui.Hosting;
 
 namespace NovaStreamMobile
 {
-    [Application]
+#if DEBUG
+    [Application(UsesCleartextTraffic = true)]
+#else
+    [Application(UsesCleartextTraffic = true, NetworkSecurityConfig = "@xml/network_security_config")]
+#endif
     public class MainApplication : MauiApplication
     {
         public MainApplication(IntPtr handle, JniHandleOwnership ownership)
