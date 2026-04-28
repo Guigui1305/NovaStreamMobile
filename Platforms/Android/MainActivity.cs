@@ -2,6 +2,7 @@ using Android.App;
 using Android.Content.PM;
 using Android.OS;
 using Android.Content;
+using Android.Runtime;
 using Microsoft.Maui;
 
 namespace NovaStreamMobile
@@ -15,13 +16,20 @@ namespace NovaStreamMobile
         protected override void OnCreate(Bundle? savedInstanceState)
         {
             base.OnCreate(savedInstanceState);
+
+            // Handler global pour les exceptions Java non gerees sur Android
+            AndroidEnvironment.UnhandledExceptionRaiser += (sender, args) =>
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"[ANDROID CRASH] {args.Exception?.GetType().Name}: {args.Exception?.Message}\n{args.Exception?.StackTrace}");
+                // Ne pas re-lancer l'exception pour eviter le crash
+                args.Handled = true;
+            };
         }
 
         protected override void OnUserLeaveHint()
         {
             base.OnUserLeaveHint();
-            // This is called when the user presses the home button
-            // We can trigger PiP mode here if a video is playing
         }
     }
 }

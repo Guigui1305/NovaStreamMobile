@@ -306,13 +306,20 @@ namespace NovaStreamMobile.Views
 
         private async void OnItemTapped(object? sender, TappedEventArgs e)
         {
-            var frame = sender as Frame;
-            if (frame?.BindingContext is not VodDisplayItem item) return;
+            try
+            {
+                var frame = sender as Frame;
+                if (frame?.BindingContext is not VodDisplayItem item) return;
 
-            if (item.IsSeries)
-                await ShowSeriesDetailAsync(item);
-            else
-                await ShowMovieDetailAsync(item);
+                if (item.IsSeries)
+                    await ShowSeriesDetailAsync(item);
+                else
+                    await ShowMovieDetailAsync(item);
+            }
+            catch (Exception ex)
+            {
+                await DisplayAlert("Erreur", $"Une erreur est survenue: {ex.Message}", "OK");
+            }
         }
 
         private async Task ShowMovieDetailAsync(VodDisplayItem item)
@@ -326,35 +333,7 @@ namespace NovaStreamMobile.Views
             bool play = await DisplayAlert(item.Name, details, "Lire", "Annuler");
             if (play && !string.IsNullOrEmpty(item.StreamUrl))
             {
-                try
-                {
-                    if (Shell.Current?.Items.Count > 0)
-                    {
-                        var tabBar = Shell.Current.Items[0];
-                        if (tabBar.Items.Count > 1)
-                        {
-                            var channel = new Channel
-                            {
-                                Name = item.Name,
-                                Url = item.StreamUrl,
-                                LogoUrl = item.ImageUrl
-                            };
-
-                            Shell.Current.CurrentItem = tabBar.Items[1];
-
-                            if (Shell.Current.CurrentPage is LiveTvView liveTv)
-                            {
-                                var vm = liveTv.BindingContext as NovaStreamMobile.ViewModels.LiveTvViewModel;
-                                if (vm != null)
-                                    vm.SelectedChannel = channel;
-                            }
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    await DisplayAlert("Erreur", $"Impossible de lancer la lecture: {ex.Message}", "OK");
-                }
+                await PlayOnLiveTvAsync(item.Name, item.StreamUrl, item.ImageUrl);
             }
         }
 
@@ -412,27 +391,8 @@ namespace NovaStreamMobile.Views
                     var episode = season.Episodes[epIndex];
                     if (!string.IsNullOrEmpty(episode.Url))
                     {
-                        var channel = new Channel
-                        {
-                            Name = $"{item.Name} - {selectedSeason} - {selectedEp}",
-                            Url = episode.Url,
-                            LogoUrl = item.ImageUrl
-                        };
-
-                        if (Shell.Current?.Items.Count > 0)
-                        {
-                            var tabBar = Shell.Current.Items[0];
-                            if (tabBar.Items.Count > 1)
-                            {
-                                Shell.Current.CurrentItem = tabBar.Items[1];
-                                if (Shell.Current.CurrentPage is LiveTvView liveTv)
-                                {
-                                    var vm = liveTv.BindingContext as NovaStreamMobile.ViewModels.LiveTvViewModel;
-                                    if (vm != null)
-                                        vm.SelectedChannel = channel;
-                                }
-                            }
-                        }
+                        string epName = $"{item.Name} - {selectedSeason} - {selectedEp}";
+                        await PlayOnLiveTvAsync(epName, episode.Url, item.ImageUrl);
                     }
                 }
 
@@ -442,6 +402,59 @@ namespace NovaStreamMobile.Views
             {
                 ErrorLabel.Text = $"Erreur: {ex.Message}";
                 StatusLabel.Text = "";
+            }
+        }
+
+        /// <summary>
+        /// Navigation securisee vers l'onglet TV Direct pour lancer la lecture.
+        /// Attend que la page soit prete avant d'assigner le channel.
+        /// </summary>
+        private async Task PlayOnLiveTvAsync(string name, string url, string imageUrl)
+        {
+            try
+            {
+                var channel = new Channel
+                {
+                    Name = name,
+                    Url = url,
+                    LogoUrl = imageUrl
+                };
+
+                // Naviguer vers l'onglet TV Direct
+                if (Shell.Current?.Items.Count > 0)
+                {
+                    var tabBar = Shell.Current.Items[0];
+                    if (tabBar.Items.Count > 1)
+                    {
+                        Shell.Current.CurrentItem = tabBar.Items[1];
+
+                        // Attendre que la navigation soit complete et la page soit prete
+                        LiveTvView? liveTv = null;
+                        for (int i = 0; i < 20; i++) // Max 2 secondes d'attente
+                        {
+                            await Task.Delay(100);
+                            liveTv = Shell.Current.CurrentPage as LiveTvView;
+                            if (liveTv != null) break;
+                        }
+
+                        if (liveTv != null)
+                        {
+                            var vm = liveTv.BindingContext as NovaStreamMobile.ViewModels.LiveTvViewModel;
+                            if (vm != null)
+                            {
+                                vm.SelectedChannel = channel;
+                                return;
+                            }
+                        }
+
+                        // Fallback: si on n'a pas pu trouver la page, ouvrir dans le navigateur externe
+                        await DisplayAlert("Info", "Navigation vers le lecteur en cours. Selectionnez l'onglet TV Direct.", "OK");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                await DisplayAlert("Erreur", $"Impossible de lancer la lecture: {ex.Message}", "OK");
             }
         }
     }

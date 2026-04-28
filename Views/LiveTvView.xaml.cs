@@ -21,6 +21,7 @@ namespace NovaStreamMobile.Views
         private double _startBrightness;
         private LiveTvViewModel? _vm;
         private bool _categoriesBuilt = false;
+        private bool _videoAttached = false;
 
         public LiveTvView()
         {
@@ -30,17 +31,32 @@ namespace NovaStreamMobile.Views
         protected override void OnAppearing()
         {
             base.OnAppearing();
-            _vm = BindingContext as LiveTvViewModel;
-            AttachVideoView();
-
-            if (_vm != null && !_categoriesBuilt)
+            try
             {
-                _vm.LiveCategories.CollectionChanged += (s, e) =>
+                _vm = BindingContext as LiveTvViewModel;
+                if (!_videoAttached)
                 {
-                    MainThread.BeginInvokeOnMainThread(BuildCategoryButtons);
-                };
-                if (_vm.LiveCategories.Count > 0)
-                    BuildCategoryButtons();
+                    AttachVideoView();
+                    _videoAttached = true;
+                }
+
+                if (_vm != null && !_categoriesBuilt)
+                {
+                    _vm.LiveCategories.CollectionChanged += (s, e) =>
+                    {
+                        MainThread.BeginInvokeOnMainThread(() =>
+                        {
+                            try { BuildCategoryButtons(); }
+                            catch { }
+                        });
+                    };
+                    if (_vm.LiveCategories.Count > 0)
+                        BuildCategoryButtons();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[LiveTvView] OnAppearing error: {ex}");
             }
         }
 
@@ -49,22 +65,29 @@ namespace NovaStreamMobile.Views
             if (_vm == null) return;
             _categoriesBuilt = true;
 
-            CategoriesBar.Children.Clear();
-
-            // Bouton Favoris
-            var favBtn = CreateCategoryButton("Favoris", "favorites",
-                _vm.SelectedCategoryId == "favorites");
-            CategoriesBar.Children.Add(favBtn);
-
-            // Boutons de categories
-            foreach (var cat in _vm.LiveCategories)
+            try
             {
-                string displayName = CleanCategoryName(cat.CategoryName);
-                if (string.IsNullOrWhiteSpace(displayName)) continue;
+                CategoriesBar.Children.Clear();
 
-                bool isSelected = cat.CategoryId == _vm.SelectedCategoryId;
-                var btn = CreateCategoryButton(displayName, cat.CategoryId, isSelected);
-                CategoriesBar.Children.Add(btn);
+                // Bouton Favoris
+                var favBtn = CreateCategoryButton("Favoris", "favorites",
+                    _vm.SelectedCategoryId == "favorites");
+                CategoriesBar.Children.Add(favBtn);
+
+                // Boutons de categories
+                foreach (var cat in _vm.LiveCategories)
+                {
+                    string displayName = CleanCategoryName(cat.CategoryName);
+                    if (string.IsNullOrWhiteSpace(displayName)) continue;
+
+                    bool isSelected = cat.CategoryId == _vm.SelectedCategoryId;
+                    var btn = CreateCategoryButton(displayName, cat.CategoryId, isSelected);
+                    CategoriesBar.Children.Add(btn);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[LiveTvView] BuildCategoryButtons error: {ex}");
             }
         }
 
@@ -84,11 +107,15 @@ namespace NovaStreamMobile.Views
             };
             btn.Clicked += (s, e) =>
             {
-                if (_vm != null)
+                try
                 {
-                    _vm.SelectedCategoryId = categoryId;
-                    BuildCategoryButtons(); // Refresh selection
+                    if (_vm != null)
+                    {
+                        _vm.SelectedCategoryId = categoryId;
+                        BuildCategoryButtons(); // Refresh selection
+                    }
                 }
+                catch { }
             };
             return btn;
         }
@@ -110,8 +137,10 @@ namespace NovaStreamMobile.Views
 #if ANDROID
             try
             {
-                var videoView = new LibVLCSharp.Platforms.Android.VideoView(
-                    Microsoft.Maui.ApplicationModel.Platform.CurrentActivity);
+                var activity = Microsoft.Maui.ApplicationModel.Platform.CurrentActivity;
+                if (activity == null) return;
+
+                var videoView = new LibVLCSharp.Platforms.Android.VideoView(activity);
                 videoView.MediaPlayer = _vm.MediaPlayer;
 
                 var nativeView = new Microsoft.Maui.Controls.ContentView();
@@ -134,129 +163,171 @@ namespace NovaStreamMobile.Views
                                 Android.Views.ViewGroup.LayoutParams.MatchParent));
                         }
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[LiveTvView] AttachVideoView inner error: {ex}");
+                    }
                 });
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[LiveTvView] AttachVideoView error: {ex}");
+            }
 #endif
         }
 
         private void OnChannelSelected(object? sender, SelectionChangedEventArgs e)
         {
-            if (e.CurrentSelection.Count == 0) return;
-            var channel = e.CurrentSelection[0] as Channel;
-            if (channel == null) return;
-
-            if (_vm != null)
+            try
             {
-                _vm.SelectedChannel = channel;
-                UpdatePlayPauseButton();
-            }
+                if (e.CurrentSelection.Count == 0) return;
+                var channel = e.CurrentSelection[0] as Channel;
+                if (channel == null) return;
 
-            if (sender is CollectionView cv)
-                cv.SelectedItem = null;
+                if (_vm != null)
+                {
+                    _vm.SelectedChannel = channel;
+                    UpdatePlayPauseButton();
+                }
+
+                if (sender is CollectionView cv)
+                    cv.SelectedItem = null;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[LiveTvView] OnChannelSelected error: {ex}");
+            }
         }
 
         private void UpdatePlayPauseButton()
         {
-            if (_vm != null)
-                PlayPauseBtn.Text = _vm.IsPlaying ? "||" : ">";
+            try
+            {
+                if (_vm != null)
+                    PlayPauseBtn.Text = _vm.IsPlaying ? "||" : ">";
+            }
+            catch { }
         }
 
         private async void OnSubtitleClicked(object? sender, EventArgs e)
         {
-            if (_vm == null || _vm.Subtitles.Count == 0)
+            try
             {
-                await DisplayAlert("Sous-titres", "Aucun sous-titre disponible pour cette chaine.", "OK");
-                return;
-            }
-
-            string[] names = new string[_vm.Subtitles.Count];
-            for (int i = 0; i < _vm.Subtitles.Count; i++)
-                names[i] = _vm.Subtitles[i].Name;
-
-            string? result = await DisplayActionSheet("Choisir les sous-titres", "Annuler", "Desactiver", names);
-            if (result == null || result == "Annuler") return;
-
-            if (result == "Desactiver")
-            {
-                _vm.MediaPlayer?.SetSpu(-1);
-                return;
-            }
-
-            foreach (var sub in _vm.Subtitles)
-            {
-                if (sub.Name == result)
+                if (_vm == null || _vm.Subtitles.Count == 0)
                 {
-                    _vm.SelectedSubtitle = sub;
-                    break;
+                    await DisplayAlert("Sous-titres", "Aucun sous-titre disponible pour cette chaine.", "OK");
+                    return;
                 }
+
+                string[] names = new string[_vm.Subtitles.Count];
+                for (int i = 0; i < _vm.Subtitles.Count; i++)
+                    names[i] = _vm.Subtitles[i].Name;
+
+                string? result = await DisplayActionSheet("Choisir les sous-titres", "Annuler", "Desactiver", names);
+                if (result == null || result == "Annuler") return;
+
+                if (result == "Desactiver")
+                {
+                    _vm.MediaPlayer?.SetSpu(-1);
+                    return;
+                }
+
+                foreach (var sub in _vm.Subtitles)
+                {
+                    if (sub.Name == result)
+                    {
+                        _vm.SelectedSubtitle = sub;
+                        break;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[LiveTvView] OnSubtitleClicked error: {ex}");
             }
         }
 
         private void OnFullscreenClicked(object? sender, EventArgs e)
         {
-            _isFullscreen = !_isFullscreen;
-            
-            if (_isFullscreen)
+            try
             {
-                Shell.SetTabBarIsVisible(this, false);
-                Shell.SetNavBarIsVisible(this, false);
-                PlayerRow.Height = new GridLength(1, GridUnitType.Star);
-                SearchRow.Height = new GridLength(0);
+                _isFullscreen = !_isFullscreen;
+                
+                if (_isFullscreen)
+                {
+                    Shell.SetTabBarIsVisible(this, false);
+                    Shell.SetNavBarIsVisible(this, false);
+                    PlayerRow.Height = new GridLength(1, GridUnitType.Star);
+                    SearchRow.Height = new GridLength(0);
+                }
+                else
+                {
+                    Shell.SetTabBarIsVisible(this, true);
+                    Shell.SetNavBarIsVisible(this, true);
+                    PlayerRow.Height = new GridLength(220);
+                    SearchRow.Height = GridLength.Auto;
+                }
             }
-            else
-            {
-                Shell.SetTabBarIsVisible(this, true);
-                Shell.SetNavBarIsVisible(this, true);
-                PlayerRow.Height = new GridLength(220);
-                SearchRow.Height = GridLength.Auto;
-            }
+            catch { }
         }
 
         private void OnPipClicked(object? sender, EventArgs e)
         {
 #if ANDROID
-            if (OperatingSystem.IsAndroidVersionAtLeast(26))
+            try
             {
-                var activity = Microsoft.Maui.ApplicationModel.Platform.CurrentActivity;
-                if (activity != null)
+                if (OperatingSystem.IsAndroidVersionAtLeast(26))
                 {
-                    var builder = new PictureInPictureParams.Builder();
-                    builder.SetAspectRatio(new Rational(16, 9));
-                    var pipParams = builder.Build();
-                    if (pipParams != null)
-                        activity.EnterPictureInPictureMode(pipParams);
+                    var activity = Microsoft.Maui.ApplicationModel.Platform.CurrentActivity;
+                    if (activity != null)
+                    {
+                        var builder = new PictureInPictureParams.Builder();
+                        builder.SetAspectRatio(new Rational(16, 9));
+                        var pipParams = builder.Build();
+                        if (pipParams != null)
+                            activity.EnterPictureInPictureMode(pipParams);
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[LiveTvView] OnPipClicked error: {ex}");
             }
 #endif
         }
 
         private void OnBrightnessPanUpdated(object? sender, PanUpdatedEventArgs e)
         {
-            switch (e.StatusType)
+            try
             {
-                case GestureStatus.Started:
-                    _startBrightness = _currentBrightness;
-                    BrightnessIndicator.IsVisible = true;
-                    break;
+                switch (e.StatusType)
+                {
+                    case GestureStatus.Started:
+                        _startBrightness = _currentBrightness;
+                        BrightnessIndicator.IsVisible = true;
+                        break;
 
-                case GestureStatus.Running:
-                    double delta = -e.TotalY / 200.0;
-                    _currentBrightness = Math.Clamp(_startBrightness + delta, 0, 1);
-                    BrightnessBar.Progress = _currentBrightness;
-                    break;
+                    case GestureStatus.Running:
+                        double delta = -e.TotalY / 200.0;
+                        _currentBrightness = Math.Clamp(_startBrightness + delta, 0, 1);
+                        BrightnessBar.Progress = _currentBrightness;
+                        break;
 
-                case GestureStatus.Completed:
-                case GestureStatus.Canceled:
-                    _ = Task.Run(async () =>
-                    {
-                        await Task.Delay(1000);
-                        MainThread.BeginInvokeOnMainThread(() =>
-                            BrightnessIndicator.IsVisible = false);
-                    });
-                    break;
+                    case GestureStatus.Completed:
+                    case GestureStatus.Canceled:
+                        _ = Task.Run(async () =>
+                        {
+                            await Task.Delay(1000);
+                            MainThread.BeginInvokeOnMainThread(() =>
+                            {
+                                try { BrightnessIndicator.IsVisible = false; }
+                                catch { }
+                            });
+                        });
+                        break;
+                }
             }
+            catch { }
         }
     }
 }

@@ -158,7 +158,18 @@ namespace NovaStreamMobile.ViewModels
             set
             {
                 if (SetProperty(ref _selectedChannel, value) && value != null)
-                    PlayChannel(value);
+                {
+                    try
+                    {
+                        PlayChannel(value);
+                    }
+                    catch (Exception ex)
+                    {
+                        ErrorMessage = $"Erreur de lecture: {ex.Message}";
+                        OnPropertyChanged(nameof(HasError));
+                        System.Diagnostics.Debug.WriteLine($"[LiveTV] SelectedChannel setter error: {ex}");
+                    }
+                }
             }
         }
 
@@ -197,22 +208,40 @@ namespace NovaStreamMobile.ViewModels
                 MediaPlayer = new MediaPlayer(LibVLC);
                 MediaPlayer.Playing += (s, e) => MainThread.BeginInvokeOnMainThread(() =>
                 {
-                    IsPlaying = true;
-                    UpdateSubtitles();
+                    try
+                    {
+                        IsPlaying = true;
+                        UpdateSubtitles();
+                    }
+                    catch { }
                 });
-                MediaPlayer.Paused += (s, e) => MainThread.BeginInvokeOnMainThread(() => IsPlaying = false);
+                MediaPlayer.Paused += (s, e) => MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    try { IsPlaying = false; } catch { }
+                });
                 MediaPlayer.Stopped += (s, e) => MainThread.BeginInvokeOnMainThread(() =>
                 {
-                    IsPlaying = false;
-                    HasChannel = false;
-                    CurrentChannelName = "";
+                    try
+                    {
+                        IsPlaying = false;
+                        HasChannel = false;
+                        CurrentChannelName = "";
+                    }
+                    catch { }
                 });
                 MediaPlayer.EncounteredError += (s, e) => MainThread.BeginInvokeOnMainThread(() =>
                 {
-                    ErrorMessage = "Erreur de lecture. Verifiez votre connexion.";
-                    OnPropertyChanged(nameof(HasError));
+                    try
+                    {
+                        ErrorMessage = "Erreur de lecture. Verifiez votre connexion.";
+                        OnPropertyChanged(nameof(HasError));
+                    }
+                    catch { }
                 });
-                MediaPlayer.PositionChanged += (s, e) => SaveResumePosition();
+                MediaPlayer.PositionChanged += (s, e) =>
+                {
+                    try { SaveResumePosition(); } catch { }
+                };
             }
             catch (Exception ex)
             {
@@ -437,36 +466,56 @@ namespace NovaStreamMobile.ViewModels
             if (_selectedCategoryId == "favorites") ApplyFilters();
         }
 
+        private Media? _currentMedia;
+
         private void PlayChannel(Channel channel)
         {
             if (MediaPlayer == null || LibVLC == null) return;
 
-            HasChannel = true;
-            CurrentChannelName = channel.Name;
-            ErrorMessage = "";
-            OnPropertyChanged(nameof(HasError));
-
-            if (_historyUrls.Contains(channel.Url)) _historyUrls.Remove(channel.Url);
-            _historyUrls.Insert(0, channel.Url);
-            if (_historyUrls.Count > 50) _historyUrls = _historyUrls.Take(50).ToList();
-            _storageService.SaveHistory(_historyUrls);
-
-            Subtitles.Clear();
-            using var media = new Media(LibVLC, new Uri(channel.Url));
-            media.AddOption(":network-caching=3000");
-            MediaPlayer.Play(media);
-
-            if (Preferences.Get("resume_enabled", true) && _resumePositions.ContainsKey(channel.Url))
+            try
             {
-                long pos = _resumePositions[channel.Url];
-                Task.Delay(1500).ContinueWith(_ =>
+                HasChannel = true;
+                CurrentChannelName = channel.Name;
+                ErrorMessage = "";
+                OnPropertyChanged(nameof(HasError));
+
+                if (_historyUrls.Contains(channel.Url)) _historyUrls.Remove(channel.Url);
+                _historyUrls.Insert(0, channel.Url);
+                if (_historyUrls.Count > 50) _historyUrls = _historyUrls.Take(50).ToList();
+                _storageService.SaveHistory(_historyUrls);
+
+                Subtitles.Clear();
+
+                // IMPORTANT: Ne PAS utiliser 'using' ici !
+                // Le Media doit rester vivant pendant toute la lecture.
+                // On garde une reference et on dispose l'ancien avant d'en creer un nouveau.
+                _currentMedia?.Dispose();
+                _currentMedia = new Media(LibVLC, new Uri(channel.Url));
+                _currentMedia.AddOption(":network-caching=3000");
+                MediaPlayer.Play(_currentMedia);
+
+                if (Preferences.Get("resume_enabled", true) && _resumePositions.ContainsKey(channel.Url))
                 {
-                    MainThread.BeginInvokeOnMainThread(() =>
+                    long pos = _resumePositions[channel.Url];
+                    Task.Delay(1500).ContinueWith(_ =>
                     {
-                        if (MediaPlayer.IsPlaying)
-                            MediaPlayer.Time = pos;
+                        MainThread.BeginInvokeOnMainThread(() =>
+                        {
+                            try
+                            {
+                                if (MediaPlayer != null && MediaPlayer.IsPlaying)
+                                    MediaPlayer.Time = pos;
+                            }
+                            catch { }
+                        });
                     });
-                });
+                }
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = $"Erreur de lecture: {ex.Message}";
+                OnPropertyChanged(nameof(HasError));
+                System.Diagnostics.Debug.WriteLine($"[LiveTV] PlayChannel error: {ex}");
             }
         }
     }

@@ -9,6 +9,20 @@ namespace NovaStreamMobile
         public App()
         {
             InitializeComponent();
+
+            // Handler global pour les exceptions non gerees dans les taches async
+            AppDomain.CurrentDomain.UnhandledException += (s, e) =>
+            {
+                var ex = e.ExceptionObject as Exception;
+                System.Diagnostics.Debug.WriteLine($"[APP CRASH] {ex?.GetType().Name}: {ex?.Message}\n{ex?.StackTrace}");
+            };
+
+            TaskScheduler.UnobservedTaskException += (s, e) =>
+            {
+                System.Diagnostics.Debug.WriteLine($"[APP TASK ERROR] {e.Exception?.Message}");
+                e.SetObserved();
+            };
+
             EnsureDefaultSource();
             MainPage = new ProfileSelectionView();
         }
