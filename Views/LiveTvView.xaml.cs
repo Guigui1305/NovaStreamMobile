@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using LibVLCSharp.Shared;
 #if ANDROID
 using Android.App;
+using Android.Content;
 using Android.Util;
 using LibVLCSharp.Platforms.Android;
 #endif
@@ -22,6 +23,11 @@ namespace NovaStreamMobile.Views
         private LiveTvViewModel? _vm;
         private bool _categoriesBuilt = false;
         private bool _videoViewReady = false;
+        private bool _attachingVideoView = false;
+
+#if ANDROID
+        private LibVLCSharp.Platforms.Android.VideoView? _androidVideoView;
+#endif
 
         public LiveTvView()
         {
@@ -34,10 +40,11 @@ namespace NovaStreamMobile.Views
             try
             {
                 _vm = BindingContext as LiveTvViewModel;
-                
-                // Attacher la VideoView de maniere asynchrone mais trackee
-                if (!_videoViewReady)
+
+                // Attacher la VideoView si pas encore fait
+                if (!_videoViewReady && !_attachingVideoView)
                 {
+                    _attachingVideoView = true;
                     _ = AttachVideoViewAsync();
                 }
 
@@ -73,18 +80,18 @@ namespace NovaStreamMobile.Views
                 _vm = BindingContext as LiveTvViewModel;
                 if (_vm == null) return;
 
-                // Attendre que la VideoView soit prete (max 3 secondes)
-                for (int i = 0; i < 30; i++)
+                // Attendre que la VideoView soit prete (max 5 secondes)
+                for (int i = 0; i < 50; i++)
                 {
                     if (_videoViewReady) break;
                     await Task.Delay(100);
                 }
 
-                // Delai supplementaire pour s'assurer que la surface Android est initialisee
-                await Task.Delay(500);
+                // Delai supplementaire pour la surface Android
+                await Task.Delay(800);
 
                 // Lancer la lecture sur le MainThread
-                MainThread.BeginInvokeOnMainThread(() =>
+                await MainThread.InvokeOnMainThreadAsync(() =>
                 {
                     try
                     {
@@ -94,12 +101,210 @@ namespace NovaStreamMobile.Views
                     catch (Exception ex)
                     {
                         System.Diagnostics.Debug.WriteLine($"[LiveTvView] PlayChannelSafe error: {ex}");
+                        // Fallback: ouvrir dans un lecteur externe
+                        _ = OpenInExternalPlayerAsync(channel.Url, channel.Name);
                     }
                 });
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[LiveTvView] PlayChannelSafeAsync error: {ex}");
+                // Fallback: ouvrir dans un lecteur externe
+                await OpenInExternalPlayerAsync(channel.Url, channel.Name);
+            }
+        }
+
+        private async Task AttachVideoViewAsync()
+        {
+            if (_vm?.MediaPlayer == null)
+            {
+                _videoViewReady = true; // Marquer comme pret pour eviter blocage
+                _attachingVideoView = false;
+                return;
+            }
+
+#if ANDROID
+            try
+            {
+                var activity = Microsoft.Maui.ApplicationModel.Platform.CurrentActivity;
+                if (activity == null)
+                {
+                    _videoViewReady = true;
+                    _attachingVideoView = false;
+                    return;
+                }
+
+                // Creer la VideoView SANS assigner le MediaPlayer tout de suite
+                _androidVideoView = new LibVLCSharp.Platforms.Android.VideoView(activity);
+
+                // Creer un ContentView MAUI pour obtenir un handler natif
+                var placeholder = new Microsoft.Maui.Controls.ContentView();
+                placeholder.Content = new BoxView { Color = Colors.Black };
+                VideoContainer.Content = placeholder;
+
+                // Attendre que le handler MAUI soit pret (plusieurs cycles de layout)
+                await Task.Delay(500);
+
+                // Maintenant attacher la VideoView Android au container natif
+                bool attached = false;
+                for (int attempt = 0; attempt < 10; attempt++)
+                {
+                    try
+                    {
+                        attached = await MainThread.InvokeOnMainThreadAsync(() =>
+                        {
+                            try
+                            {
+                                var handler = VideoContainer.Handler;
+                                if (handler?.PlatformView is Android.Views.ViewGroup container)
+                                {
+                                    // 1. D'abord nettoyer le container
+                                    container.RemoveAllViews();
+
+                                    // 2. Retirer la VideoView de son ancien parent si necessaire
+                                    if (_androidVideoView.Parent is Android.Views.ViewGroup oldParent)
+                                        oldParent.RemoveView(_androidVideoView);
+
+                                    // 3. AJOUTER la VideoView au layout AVANT d'assigner le MediaPlayer
+                                    container.AddView(_androidVideoView, new Android.Views.ViewGroup.LayoutParams(
+                                        Android.Views.ViewGroup.LayoutParams.MatchParent,
+                                        Android.Views.ViewGroup.LayoutParams.MatchParent));
+
+                                    System.Diagnostics.Debug.WriteLine("[LiveTvView] VideoView added to container");
+                                    return true;
+                                }
+                                return false;
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[LiveTvView] Attach attempt error: {ex}");
+                                return false;
+                            }
+                        });
+
+                        if (attached) break;
+                    }
+                    catch { }
+
+                    await Task.Delay(200 * (attempt + 1));
+                }
+
+                if (attached)
+                {
+                    // 4. Attendre que la VideoView soit dans le window et ait une surface
+                    await Task.Delay(500);
+
+                    // 5. MAINTENANT assigner le MediaPlayer (APRES que la VideoView est dans le layout)
+                    await MainThread.InvokeOnMainThreadAsync(() =>
+                    {
+                        try
+                        {
+                            _androidVideoView.MediaPlayer = _vm.MediaPlayer;
+                            System.Diagnostics.Debug.WriteLine("[LiveTvView] MediaPlayer assigned to VideoView AFTER layout attachment");
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[LiveTvView] MediaPlayer assignment error: {ex}");
+                        }
+                    });
+
+                    // 6. Attendre encore un peu pour la surface
+                    await Task.Delay(300);
+                }
+
+                _videoViewReady = true;
+                _attachingVideoView = false;
+                System.Diagnostics.Debug.WriteLine($"[LiveTvView] VideoView ready: attached={attached}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[LiveTvView] AttachVideoView error: {ex}");
+                _videoViewReady = true;
+                _attachingVideoView = false;
+            }
+#else
+            _videoViewReady = true;
+            _attachingVideoView = false;
+#endif
+        }
+
+        /// <summary>
+        /// Ouvre le flux dans un lecteur externe (VLC, MX Player, etc.) comme fallback.
+        /// </summary>
+        private async Task OpenInExternalPlayerAsync(string url, string title)
+        {
+#if ANDROID
+            try
+            {
+                var activity = Microsoft.Maui.ApplicationModel.Platform.CurrentActivity;
+                if (activity == null) return;
+
+                var intent = new Intent(Intent.ActionView);
+                intent.SetDataAndType(Android.Net.Uri.Parse(url), "video/*");
+                intent.PutExtra("title", title);
+                intent.AddFlags(ActivityFlags.NewTask);
+
+                // Verifier qu'un lecteur externe est disponible
+                if (intent.ResolveActivity(activity.PackageManager!) != null)
+                {
+                    activity.StartActivity(intent);
+                }
+                else
+                {
+                    await MainThread.InvokeOnMainThreadAsync(async () =>
+                    {
+                        await DisplayAlert("Lecteur externe",
+                            "Aucun lecteur video externe trouve. Installez VLC ou MX Player depuis le Play Store.",
+                            "OK");
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[LiveTvView] External player error: {ex}");
+                await MainThread.InvokeOnMainThreadAsync(async () =>
+                {
+                    await DisplayAlert("Erreur", $"Impossible d'ouvrir le lecteur externe: {ex.Message}", "OK");
+                });
+            }
+#endif
+        }
+
+        private void OnChannelSelected(object? sender, SelectionChangedEventArgs e)
+        {
+            try
+            {
+                if (e.CurrentSelection.Count == 0) return;
+                var channel = e.CurrentSelection[0] as Channel;
+                if (channel == null) return;
+
+                if (_vm != null)
+                {
+                    if (!_videoViewReady)
+                    {
+                        _ = PlayChannelSafeAsync(channel);
+                    }
+                    else
+                    {
+                        try
+                        {
+                            _vm.SelectedChannel = channel;
+                            UpdatePlayPauseButton();
+                        }
+                        catch (Exception playEx)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[LiveTvView] Play error, trying external: {playEx}");
+                            _ = OpenInExternalPlayerAsync(channel.Url, channel.Name);
+                        }
+                    }
+                }
+
+                if (sender is CollectionView cv)
+                    cv.SelectedItem = null;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[LiveTvView] OnChannelSelected error: {ex}");
             }
         }
 
@@ -155,7 +360,7 @@ namespace NovaStreamMobile.Views
                     if (_vm != null)
                     {
                         _vm.SelectedCategoryId = categoryId;
-                        BuildCategoryButtons(); // Refresh selection
+                        BuildCategoryButtons();
                     }
                 }
                 catch { }
@@ -167,148 +372,9 @@ namespace NovaStreamMobile.Views
         {
             name = name.Replace("|FR|", "").Replace("|CH|", "").Replace("|MULTI|", "").Trim();
             if (name.StartsWith("*")) name = name.TrimStart('*').Trim();
-            // Enlever le symbole special au debut
             while (name.Length > 0 && !char.IsLetterOrDigit(name[0]) && name[0] != '(')
                 name = name.Substring(1).Trim();
             return name;
-        }
-
-        private async Task AttachVideoViewAsync()
-        {
-            if (_vm?.MediaPlayer == null) return;
-
-#if ANDROID
-            try
-            {
-                var activity = Microsoft.Maui.ApplicationModel.Platform.CurrentActivity;
-                if (activity == null) return;
-
-                var videoView = new LibVLCSharp.Platforms.Android.VideoView(activity);
-                videoView.MediaPlayer = _vm.MediaPlayer;
-
-                var nativeView = new Microsoft.Maui.Controls.ContentView();
-                nativeView.Content = new Label { Text = "" };
-
-                VideoContainer.Content = nativeView;
-
-                // Attendre un cycle de layout pour que le handler soit pret
-                await Task.Delay(200);
-
-                MainThread.BeginInvokeOnMainThread(() =>
-                {
-                    try
-                    {
-                        var handler = VideoContainer.Handler;
-                        if (handler?.PlatformView is Android.Views.ViewGroup container)
-                        {
-                            container.RemoveAllViews();
-                            if (videoView.Parent is Android.Views.ViewGroup oldParent)
-                                oldParent.RemoveView(videoView);
-                            container.AddView(videoView, new Android.Views.ViewGroup.LayoutParams(
-                                Android.Views.ViewGroup.LayoutParams.MatchParent,
-                                Android.Views.ViewGroup.LayoutParams.MatchParent));
-                            
-                            // Marquer la VideoView comme prete
-                            _videoViewReady = true;
-                            System.Diagnostics.Debug.WriteLine("[LiveTvView] VideoView attached successfully");
-                        }
-                        else
-                        {
-                            // Le handler n'est pas pret, reessayer apres un delai
-                            _ = RetryAttachVideoViewAsync(videoView);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[LiveTvView] AttachVideoView inner error: {ex}");
-                        _ = RetryAttachVideoViewAsync(videoView);
-                    }
-                });
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[LiveTvView] AttachVideoView error: {ex}");
-            }
-#else
-            _videoViewReady = true;
-#endif
-        }
-
-#if ANDROID
-        private async Task RetryAttachVideoViewAsync(LibVLCSharp.Platforms.Android.VideoView videoView)
-        {
-            // Reessayer 5 fois avec un delai croissant
-            for (int attempt = 0; attempt < 5; attempt++)
-            {
-                await Task.Delay(300 * (attempt + 1));
-                
-                try
-                {
-                    var handler = VideoContainer.Handler;
-                    if (handler?.PlatformView is Android.Views.ViewGroup container)
-                    {
-                        MainThread.BeginInvokeOnMainThread(() =>
-                        {
-                            try
-                            {
-                                container.RemoveAllViews();
-                                if (videoView.Parent is Android.Views.ViewGroup oldParent)
-                                    oldParent.RemoveView(videoView);
-                                container.AddView(videoView, new Android.Views.ViewGroup.LayoutParams(
-                                    Android.Views.ViewGroup.LayoutParams.MatchParent,
-                                    Android.Views.ViewGroup.LayoutParams.MatchParent));
-                                
-                                _videoViewReady = true;
-                                System.Diagnostics.Debug.WriteLine($"[LiveTvView] VideoView attached on retry {attempt + 1}");
-                            }
-                            catch (Exception ex)
-                            {
-                                System.Diagnostics.Debug.WriteLine($"[LiveTvView] Retry attach error: {ex}");
-                            }
-                        });
-                        
-                        if (_videoViewReady) return;
-                    }
-                }
-                catch { }
-            }
-            
-            // Meme si on n'a pas pu attacher, marquer comme "pret" pour eviter un blocage infini
-            // La lecture fonctionnera en audio seulement
-            _videoViewReady = true;
-            System.Diagnostics.Debug.WriteLine("[LiveTvView] VideoView attachment failed after retries, continuing anyway");
-        }
-#endif
-
-        private void OnChannelSelected(object? sender, SelectionChangedEventArgs e)
-        {
-            try
-            {
-                if (e.CurrentSelection.Count == 0) return;
-                var channel = e.CurrentSelection[0] as Channel;
-                if (channel == null) return;
-
-                if (_vm != null)
-                {
-                    // Si la VideoView n'est pas prete, utiliser PlayChannelSafe
-                    if (!_videoViewReady)
-                    {
-                        _ = PlayChannelSafeAsync(channel);
-                    }
-                    else
-                    {
-                        _vm.SelectedChannel = channel;
-                        UpdatePlayPauseButton();
-                    }
-                }
-
-                if (sender is CollectionView cv)
-                    cv.SelectedItem = null;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[LiveTvView] OnChannelSelected error: {ex}");
-            }
         }
 
         private void UpdatePlayPauseButton()
@@ -364,7 +430,7 @@ namespace NovaStreamMobile.Views
             try
             {
                 _isFullscreen = !_isFullscreen;
-                
+
                 if (_isFullscreen)
                 {
                     Shell.SetTabBarIsVisible(this, false);

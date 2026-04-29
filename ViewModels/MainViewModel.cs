@@ -484,6 +484,12 @@ namespace NovaStreamMobile.ViewModels
                 return;
             }
 
+            // Lancer la lecture de maniere asynchrone pour eviter les crashs natifs
+            _ = PlayChannelInternalAsync(channel);
+        }
+
+        private async Task PlayChannelInternalAsync(Channel channel)
+        {
             try
             {
                 HasChannel = true;
@@ -509,52 +515,86 @@ namespace NovaStreamMobile.ViewModels
                 // Arreter la lecture en cours avant de creer un nouveau media
                 try
                 {
-                    if (MediaPlayer.IsPlaying)
+                    if (MediaPlayer != null && MediaPlayer.IsPlaying)
+                    {
                         MediaPlayer.Stop();
+                        // Attendre que le stop soit effectif
+                        await Task.Delay(300);
+                    }
                 }
-                catch { }
+                catch (Exception stopEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[LiveTV] Stop error: {stopEx.Message}");
+                    await Task.Delay(500);
+                }
 
                 // Disposer l'ancien media
                 try { _currentMedia?.Dispose(); } catch { }
                 _currentMedia = null;
 
+                // Petit delai pour laisser LibVLC se stabiliser apres le stop
+                await Task.Delay(200);
+
                 // Creer le nouveau media avec validation URI
-                Uri mediaUri;
                 try
                 {
-                    mediaUri = new Uri(channel.Url);
-                }
-                catch (UriFormatException)
-                {
-                    // Essayer comme chemin brut
-                    _currentMedia = new Media(LibVLC, channel.Url, FromType.FromLocation);
+                    Uri mediaUri;
+                    try
+                    {
+                        mediaUri = new Uri(channel.Url);
+                        _currentMedia = new Media(LibVLC!, mediaUri);
+                    }
+                    catch (UriFormatException)
+                    {
+                        _currentMedia = new Media(LibVLC!, channel.Url, FromType.FromLocation);
+                    }
+
                     _currentMedia.AddOption(":network-caching=3000");
-                    MediaPlayer.Play(_currentMedia);
+                    _currentMedia.AddOption(":clock-jitter=0");
+                    _currentMedia.AddOption(":clock-synchro=0");
+
+                    System.Diagnostics.Debug.WriteLine($"[LiveTV] Media created for: {channel.Name} - {channel.Url}");
+                }
+                catch (Exception mediaEx)
+                {
+                    ErrorMessage = $"Erreur creation media: {mediaEx.Message}";
+                    OnPropertyChanged(nameof(HasError));
+                    System.Diagnostics.Debug.WriteLine($"[LiveTV] Media creation error: {mediaEx}");
                     return;
                 }
 
-                _currentMedia = new Media(LibVLC, mediaUri);
-                _currentMedia.AddOption(":network-caching=3000");
-                
-                // Lancer la lecture
-                MediaPlayer.Play(_currentMedia);
-                System.Diagnostics.Debug.WriteLine($"[LiveTV] Playing: {channel.Name} - {channel.Url}");
+                // Lancer la lecture sur le MainThread avec un delai de securite
+                await MainThread.InvokeOnMainThreadAsync(() =>
+                {
+                    try
+                    {
+                        if (MediaPlayer != null && _currentMedia != null)
+                        {
+                            MediaPlayer.Play(_currentMedia);
+                            System.Diagnostics.Debug.WriteLine($"[LiveTV] Play started: {channel.Name}");
+                        }
+                    }
+                    catch (Exception playEx)
+                    {
+                        ErrorMessage = $"Erreur lecture: {playEx.Message}";
+                        OnPropertyChanged(nameof(HasError));
+                        System.Diagnostics.Debug.WriteLine($"[LiveTV] Play error: {playEx}");
+                    }
+                });
 
                 // Resume position si disponible
                 if (Preferences.Get("resume_enabled", true) && _resumePositions.ContainsKey(channel.Url))
                 {
                     long pos = _resumePositions[channel.Url];
-                    Task.Delay(2000).ContinueWith(_ =>
+                    await Task.Delay(2000);
+                    await MainThread.InvokeOnMainThreadAsync(() =>
                     {
-                        MainThread.BeginInvokeOnMainThread(() =>
+                        try
                         {
-                            try
-                            {
-                                if (MediaPlayer != null && MediaPlayer.IsPlaying)
-                                    MediaPlayer.Time = pos;
-                            }
-                            catch { }
-                        });
+                            if (MediaPlayer != null && MediaPlayer.IsPlaying)
+                                MediaPlayer.Time = pos;
+                        }
+                        catch { }
                     });
                 }
             }
@@ -562,7 +602,7 @@ namespace NovaStreamMobile.ViewModels
             {
                 ErrorMessage = $"Erreur de lecture: {ex.Message}";
                 OnPropertyChanged(nameof(HasError));
-                System.Diagnostics.Debug.WriteLine($"[LiveTV] PlayChannel error: {ex}");
+                System.Diagnostics.Debug.WriteLine($"[LiveTV] PlayChannelInternal error: {ex}");
             }
         }
     }
