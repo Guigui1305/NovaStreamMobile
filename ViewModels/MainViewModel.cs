@@ -37,8 +37,8 @@ namespace NovaStreamMobile.ViewModels
             set => SetProperty(ref _channels, value);
         }
 
-        private ObservableCollection<XtreamService.XtreamCategory> _categories = new();
-        public ObservableCollection<XtreamService.XtreamCategory> Categories
+        private ObservableCollection<XtreamCategory> _categories = new();
+        public ObservableCollection<XtreamCategory> Categories
         {
             get => _categories;
             set => SetProperty(ref _categories, value);
@@ -108,7 +108,7 @@ namespace NovaStreamMobile.ViewModels
                 }
 
                 var cats = await _xtreamService.GetFrenchLiveCategoriesAsync(source, _cts.Token);
-                Categories = new ObservableCollection<XtreamService.XtreamCategory>(cats);
+                Categories = new ObservableCollection<XtreamCategory>(cats);
                 StatusText = $"{cats.Count} categories";
             }
             catch (OperationCanceledException) { }
@@ -196,8 +196,8 @@ namespace NovaStreamMobile.ViewModels
             }
         }
 
-        private ObservableCollection<XtreamService.VodItem> _trendingMovies = new();
-        public ObservableCollection<XtreamService.VodItem> TrendingMovies
+        private ObservableCollection<VodItem> _trendingMovies = new();
+        public ObservableCollection<VodItem> TrendingMovies
         {
             get => _trendingMovies;
             set
@@ -207,8 +207,8 @@ namespace NovaStreamMobile.ViewModels
             }
         }
 
-        private ObservableCollection<XtreamService.SeriesItem> _trendingSeries = new();
-        public ObservableCollection<XtreamService.SeriesItem> TrendingSeries
+        private ObservableCollection<SeriesItem> _trendingSeries = new();
+        public ObservableCollection<SeriesItem> TrendingSeries
         {
             get => _trendingSeries;
             set
@@ -292,7 +292,7 @@ namespace NovaStreamMobile.ViewModels
                 if (cats.Count > 0)
                 {
                     var movies = await _xtreamService.GetVodStreamsByCategoryAsync(source, cats[0].CategoryId);
-                    TrendingMovies = new ObservableCollection<XtreamService.VodItem>(movies.Take(20));
+                    TrendingMovies = new ObservableCollection<VodItem>(movies.Take(20));
                 }
             }
             catch { }
@@ -306,7 +306,7 @@ namespace NovaStreamMobile.ViewModels
                 if (cats.Count > 0)
                 {
                     var series = await _xtreamService.GetSeriesByCategoryAsync(source, cats[0].CategoryId);
-                    TrendingSeries = new ObservableCollection<XtreamService.SeriesItem>(series.Take(20));
+                    TrendingSeries = new ObservableCollection<SeriesItem>(series.Take(20));
                 }
             }
             catch { }

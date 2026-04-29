@@ -8,7 +8,7 @@ namespace NovaStreamMobile.Views
     {
         private readonly XtreamService _xtreamService;
         private readonly StorageService _storageService;
-        private MediaSource? _source;
+        private NovaStreamMobile.Models.MediaSource? _source;
         private string _selectedCategoryId = "";
         private string _searchText = "";
         private CancellationTokenSource? _loadCts;

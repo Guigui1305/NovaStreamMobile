@@ -9,7 +9,7 @@ namespace NovaStreamMobile.Views
     {
         private readonly XtreamService _xtreamService = new();
         private readonly StorageService _storageService = new();
-        private List<XtreamService.XtreamCategory> _categories = new();
+        private List<XtreamCategory> _categories = new();
         private List<Channel> _allChannels = new();
         private string _currentStreamUrl = "";
         private bool _isMuted = false;
@@ -291,7 +291,7 @@ namespace NovaStreamMobile.Views
 
         // ==================== HELPERS ====================
 
-        private MediaSource? GetSource()
+        private NovaStreamMobile.Models.MediaSource? GetSource()
         {
             try
             {

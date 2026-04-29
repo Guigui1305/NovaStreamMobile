@@ -8,8 +8,8 @@ namespace NovaStreamMobile.Views
     {
         private readonly XtreamService _xtreamService = new();
         private readonly StorageService _storageService = new();
-        private List<XtreamService.XtreamCategory> _categories = new();
-        private List<XtreamService.VodItem> _allFilms = new();
+        private List<XtreamCategory> _categories = new();
+        private List<VodItem> _allFilms = new();
         private string _currentStreamUrl = "";
         private bool _isMuted = false;
         private int _currentPage = 0;
@@ -200,7 +200,7 @@ namespace NovaStreamMobile.Views
 
         private void OnFilmTapped(object? sender, TappedEventArgs e)
         {
-            if (sender is VisualElement ve && ve.BindingContext is XtreamService.VodItem film)
+            if (sender is VisualElement ve && ve.BindingContext is VodItem film)
             {
                 PlayFilm(film);
             }
@@ -211,7 +211,7 @@ namespace NovaStreamMobile.Views
             // Not used - using TapGestureRecognizer instead
         }
 
-        public void PlayFilm(XtreamService.VodItem film)
+        public void PlayFilm(VodItem film)
         {
             try
             {
@@ -316,7 +316,7 @@ namespace NovaStreamMobile.Views
 
         // ==================== HELPERS ====================
 
-        private MediaSource? GetSource()
+        private NovaStreamMobile.Models.MediaSource? GetSource()
         {
             try
             {
