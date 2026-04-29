@@ -228,7 +228,7 @@ namespace NovaStreamMobile.Views
                 ErrorLabel.IsVisible = false;
 
                 Player.Stop();
-                Player.Source = Microsoft.Maui.Controls.MediaSource.FromUri(url);
+                Player.Source = CommunityToolkit.Maui.Views.MediaSource.FromUri(url);
                 BtnPlayPause.Text = "⏸";
             }
             catch (Exception ex)
