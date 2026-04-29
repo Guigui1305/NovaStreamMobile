@@ -12,6 +12,7 @@ namespace NovaStreamMobile.Views
         private List<VodItem> _allFilms = new();
         private string _currentStreamUrl = "";
         private bool _isMuted = false;
+        private bool _useInternalPlayer = false;
         private int _currentPage = 0;
         private const int PageSize = 60;
         private CancellationTokenSource? _searchCts;
@@ -31,11 +32,16 @@ namespace NovaStreamMobile.Views
 
             Player.MediaFailed += (s, e) =>
             {
-                MainThread.BeginInvokeOnMainThread(() =>
+                MainThread.BeginInvokeOnMainThread(async () =>
                 {
                     PlayerLoading.IsRunning = false;
-                    ErrorLabel.Text = "Erreur de lecture. Essayez le lecteur externe.";
-                    ErrorLabel.IsVisible = true;
+                    if (!string.IsNullOrEmpty(_currentStreamUrl))
+                    {
+                        ErrorLabel.Text = "Lecteur interne indisponible. Ouverture du lecteur externe...";
+                        ErrorLabel.IsVisible = true;
+                        await Task.Delay(500);
+                        await OpenInExternalPlayerAsync(_currentStreamUrl);
+                    }
                 });
             };
         }
@@ -198,11 +204,11 @@ namespace NovaStreamMobile.Views
 
         // ==================== PLAYBACK ====================
 
-        private void OnFilmTapped(object? sender, TappedEventArgs e)
+        private async void OnFilmTapped(object? sender, TappedEventArgs e)
         {
             if (sender is VisualElement ve && ve.BindingContext is VodItem film)
             {
-                PlayFilm(film);
+                await PlayFilmAsync(film);
             }
         }
 
@@ -211,25 +217,31 @@ namespace NovaStreamMobile.Views
             // Not used - using TapGestureRecognizer instead
         }
 
-        public void PlayFilm(VodItem film)
+        public async Task PlayFilmAsync(VodItem film)
         {
             try
             {
                 var source = GetSource();
                 if (source == null) return;
 
-                // Build VOD stream URL - try multiple formats
-                var ext = !string.IsNullOrEmpty(film.ContainerExtension) ? film.ContainerExtension : "m3u8";
+                var ext = !string.IsNullOrEmpty(film.ContainerExtension) ? film.ContainerExtension : "mp4";
                 var url = $"{source.Url}/movie/{source.Username}/{source.Password}/{film.StreamId}.{ext}";
                 _currentStreamUrl = url;
                 NowPlayingLabel.Text = film.Name;
-                PlayerSection.IsVisible = true;
-                PlayerLoading.IsRunning = true;
                 ErrorLabel.IsVisible = false;
 
-                Player.Stop();
-                Player.Source = CommunityToolkit.Maui.Views.MediaSource.FromUri(url);
-                BtnPlayPause.Text = "⏸";
+                if (_useInternalPlayer)
+                {
+                    PlayerSection.IsVisible = true;
+                    PlayerLoading.IsRunning = true;
+                    Player.Stop();
+                    Player.Source = CommunityToolkit.Maui.Views.MediaSource.FromUri(url);
+                    BtnPlayPause.Text = "⏸";
+                }
+                else
+                {
+                    await OpenInExternalPlayerAsync(url);
+                }
             }
             catch (Exception ex)
             {
@@ -291,26 +303,74 @@ namespace NovaStreamMobile.Views
             try
             {
 #if ANDROID
-                var intent = new Android.Content.Intent(Android.Content.Intent.ActionView);
-                intent.SetDataAndType(Android.Net.Uri.Parse(url), "video/*");
-                intent.AddFlags(Android.Content.ActivityFlags.NewTask);
+                // Essayer VLC d'abord
+                var vlcIntent = new Android.Content.Intent(Android.Content.Intent.ActionView);
+                vlcIntent.SetPackage("org.videolan.vlc");
+                vlcIntent.SetDataAndType(Android.Net.Uri.Parse(url), "video/*");
+                vlcIntent.PutExtra("title", NowPlayingLabel.Text ?? "NovaStream");
+                vlcIntent.AddFlags(Android.Content.ActivityFlags.NewTask);
 
                 var context = Android.App.Application.Context;
-                if (intent.ResolveActivity(context.PackageManager!) != null)
+
+                try
                 {
-                    context.StartActivity(intent);
+                    context.StartActivity(vlcIntent);
+                    return;
                 }
-                else
+                catch (Android.Content.ActivityNotFoundException) { }
+
+                // Essayer MX Player
+                var mxIntent = new Android.Content.Intent(Android.Content.Intent.ActionView);
+                mxIntent.SetPackage("com.mxtech.videoplayer.ad");
+                mxIntent.SetDataAndType(Android.Net.Uri.Parse(url), "video/*");
+                mxIntent.AddFlags(Android.Content.ActivityFlags.NewTask);
+
+                try
                 {
-                    await DisplayAlert("Lecteur externe",
-                        "Aucun lecteur video externe trouve. Installez VLC ou MX Player.",
-                        "OK");
+                    context.StartActivity(mxIntent);
+                    return;
+                }
+                catch (Android.Content.ActivityNotFoundException) { }
+
+                // Essayer MX Player Pro
+                var mxProIntent = new Android.Content.Intent(Android.Content.Intent.ActionView);
+                mxProIntent.SetPackage("com.mxtech.videoplayer.pro");
+                mxProIntent.SetDataAndType(Android.Net.Uri.Parse(url), "video/*");
+                mxProIntent.AddFlags(Android.Content.ActivityFlags.NewTask);
+
+                try
+                {
+                    context.StartActivity(mxProIntent);
+                    return;
+                }
+                catch (Android.Content.ActivityNotFoundException) { }
+
+                // Fallback : n'importe quel lecteur video
+                var genericIntent = new Android.Content.Intent(Android.Content.Intent.ActionView);
+                genericIntent.SetDataAndType(Android.Net.Uri.Parse(url), "video/*");
+                genericIntent.AddFlags(Android.Content.ActivityFlags.NewTask);
+
+                try
+                {
+                    context.StartActivity(genericIntent);
+                }
+                catch (Android.Content.ActivityNotFoundException)
+                {
+                    await MainThread.InvokeOnMainThreadAsync(async () =>
+                    {
+                        await DisplayAlert("Lecteur externe requis",
+                            "Aucun lecteur video trouve.\n\nInstallez VLC ou MX Player depuis le Play Store.",
+                            "OK");
+                    });
                 }
 #endif
             }
             catch (Exception ex)
             {
-                await DisplayAlert("Erreur", $"Impossible d'ouvrir le lecteur externe: {ex.Message}", "OK");
+                await MainThread.InvokeOnMainThreadAsync(async () =>
+                {
+                    await DisplayAlert("Erreur", $"Impossible d'ouvrir le lecteur externe: {ex.Message}", "OK");
+                });
             }
         }
 

@@ -22,6 +22,7 @@ namespace NovaStreamMobile.Views
         private string _currentEpisodeUrl = "";
         private string _currentEpisodeName = "";
         private bool _isMuted = false;
+        private bool _useInternalPlayer = false;
 
         public SeriesView()
         {
@@ -40,13 +41,18 @@ namespace NovaStreamMobile.Views
 
             Player.MediaFailed += (s, e) =>
             {
-                MainThread.BeginInvokeOnMainThread(() =>
+                MainThread.BeginInvokeOnMainThread(async () =>
                 {
                     try
                     {
                         PlayerLoading.IsRunning = false;
-                        ErrorLabel.Text = "Erreur de lecture. Essayez le lecteur externe.";
-                        ErrorLabel.IsVisible = true;
+                        if (!string.IsNullOrEmpty(_currentEpisodeUrl))
+                        {
+                            ErrorLabel.Text = "Lecteur interne indisponible. Ouverture du lecteur externe...";
+                            ErrorLabel.IsVisible = true;
+                            await Task.Delay(500);
+                            await OpenInExternalPlayerAsync(_currentEpisodeUrl, _currentEpisodeName);
+                        }
                     }
                     catch { }
                 });
@@ -273,7 +279,6 @@ namespace NovaStreamMobile.Views
                 if (season == null || season.Episodes.Count == 0)
                 {
                     await DisplayAlert("Info", "Aucun episode disponible.", "OK");
-                    StatusLabel.Text = "";
                     return;
                 }
 
@@ -298,7 +303,7 @@ namespace NovaStreamMobile.Views
                     if (!string.IsNullOrEmpty(episode.Url))
                     {
                         string epName = $"{item.Name} - {selectedSeason} - {selectedEp}";
-                        PlayEpisode(epName, episode.Url);
+                        await PlayEpisodeAsync(epName, episode.Url);
                     }
                     else
                     {
@@ -316,7 +321,7 @@ namespace NovaStreamMobile.Views
             }
         }
 
-        private void OnEpisodeTapped(object? sender, TappedEventArgs e)
+        private async void OnEpisodeTapped(object? sender, TappedEventArgs e)
         {
             try
             {
@@ -331,7 +336,7 @@ namespace NovaStreamMobile.Views
                 string epName = !string.IsNullOrEmpty(episode.Title)
                     ? $"E{episode.EpisodeNum:D2} - {episode.Title}"
                     : $"Episode {episode.EpisodeNum}";
-                PlayEpisode(epName, episode.Url);
+                await PlayEpisodeAsync(epName, episode.Url);
             }
             catch (Exception ex)
             {
@@ -340,22 +345,31 @@ namespace NovaStreamMobile.Views
             }
         }
 
-        // ==================== LECTEUR VIDEO (MediaElement) ====================
+        // ==================== LECTEUR VIDEO ====================
 
-        private void PlayEpisode(string name, string url)
+        private async Task PlayEpisodeAsync(string name, string url)
         {
             try
             {
                 _currentEpisodeName = name;
                 _currentEpisodeUrl = url;
                 NowPlayingLabel.Text = name;
-                PlayerSection.IsVisible = true;
-                PlayerLoading.IsRunning = true;
                 ErrorLabel.IsVisible = false;
 
-                Player.Stop();
-                Player.Source = CommunityToolkit.Maui.Views.MediaSource.FromUri(url);
-                BtnPlayPause.Text = "⏸";
+                if (_useInternalPlayer)
+                {
+                    // Mode lecteur interne MediaElement
+                    PlayerSection.IsVisible = true;
+                    PlayerLoading.IsRunning = true;
+                    Player.Stop();
+                    Player.Source = CommunityToolkit.Maui.Views.MediaSource.FromUri(url);
+                    BtnPlayPause.Text = "⏸";
+                }
+                else
+                {
+                    // Mode lecteur externe par defaut (plus fiable)
+                    await OpenInExternalPlayerAsync(url, name);
+                }
             }
             catch (Exception ex)
             {
@@ -415,6 +429,15 @@ namespace NovaStreamMobile.Views
             // Not used in current flow (ActionSheet navigation)
         }
 
+        private void OnTogglePlayerClicked(object? sender, EventArgs e)
+        {
+            _useInternalPlayer = !_useInternalPlayer;
+            if (sender is Button btn)
+            {
+                btn.Text = _useInternalPlayer ? "🔄 Externe" : "🔄 Interne";
+            }
+        }
+
         // ==================== EXTERNAL PLAYER ====================
 
         private async Task OpenInExternalPlayerAsync(string url, string title)
@@ -422,24 +445,63 @@ namespace NovaStreamMobile.Views
 #if ANDROID
             try
             {
-                var activity = Microsoft.Maui.ApplicationModel.Platform.CurrentActivity;
-                if (activity == null) return;
+                var context = Android.App.Application.Context;
 
-                var intent = new Android.Content.Intent(Android.Content.Intent.ActionView);
-                intent.SetDataAndType(Android.Net.Uri.Parse(url), "video/*");
-                intent.PutExtra("title", title);
-                intent.AddFlags(Android.Content.ActivityFlags.NewTask);
+                // Essayer VLC d'abord
+                var vlcIntent = new Android.Content.Intent(Android.Content.Intent.ActionView);
+                vlcIntent.SetPackage("org.videolan.vlc");
+                vlcIntent.SetDataAndType(Android.Net.Uri.Parse(url), "video/*");
+                vlcIntent.PutExtra("title", title);
+                vlcIntent.AddFlags(Android.Content.ActivityFlags.NewTask);
 
-                if (intent.ResolveActivity(activity.PackageManager!) != null)
+                try
                 {
-                    activity.StartActivity(intent);
+                    context.StartActivity(vlcIntent);
+                    return;
                 }
-                else
+                catch (Android.Content.ActivityNotFoundException) { }
+
+                // Essayer MX Player
+                var mxIntent = new Android.Content.Intent(Android.Content.Intent.ActionView);
+                mxIntent.SetPackage("com.mxtech.videoplayer.ad");
+                mxIntent.SetDataAndType(Android.Net.Uri.Parse(url), "video/*");
+                mxIntent.AddFlags(Android.Content.ActivityFlags.NewTask);
+
+                try
+                {
+                    context.StartActivity(mxIntent);
+                    return;
+                }
+                catch (Android.Content.ActivityNotFoundException) { }
+
+                // Essayer MX Player Pro
+                var mxProIntent = new Android.Content.Intent(Android.Content.Intent.ActionView);
+                mxProIntent.SetPackage("com.mxtech.videoplayer.pro");
+                mxProIntent.SetDataAndType(Android.Net.Uri.Parse(url), "video/*");
+                mxProIntent.AddFlags(Android.Content.ActivityFlags.NewTask);
+
+                try
+                {
+                    context.StartActivity(mxProIntent);
+                    return;
+                }
+                catch (Android.Content.ActivityNotFoundException) { }
+
+                // Fallback : n'importe quel lecteur video
+                var genericIntent = new Android.Content.Intent(Android.Content.Intent.ActionView);
+                genericIntent.SetDataAndType(Android.Net.Uri.Parse(url), "video/*");
+                genericIntent.AddFlags(Android.Content.ActivityFlags.NewTask);
+
+                try
+                {
+                    context.StartActivity(genericIntent);
+                }
+                catch (Android.Content.ActivityNotFoundException)
                 {
                     await MainThread.InvokeOnMainThreadAsync(async () =>
                     {
-                        await DisplayAlert("Lecteur externe",
-                            "Aucun lecteur video externe trouve. Installez VLC ou MX Player depuis le Play Store.",
+                        await DisplayAlert("Lecteur externe requis",
+                            "Aucun lecteur video trouve.\n\nInstallez VLC ou MX Player depuis le Play Store pour lire les series.",
                             "OK");
                     });
                 }
