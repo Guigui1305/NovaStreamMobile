@@ -6,51 +6,53 @@
              xmlns:services="clr-namespace:NovaStreamMobile.Services"
              x:Class="NovaStreamMobile.Views.HomeView"
              BackgroundColor="{StaticResource Background}"
-             Title="Accueil">
+             Title="Accueil"
+             Shell.NavBarIsVisible="False">
 
     <ContentPage.BindingContext>
         <vm:HomeViewModel />
     </ContentPage.BindingContext>
 
     <ScrollView>
-        <VerticalStackLayout Spacing="20" Padding="0,0,0,20">
+        <VerticalStackLayout Spacing="24" Padding="0,0,0,24">
             
-            <!-- Header premium -->
-            <Grid BackgroundColor="#141414" Padding="16,20,16,16">
+            <!-- ============ HERO HEADER ============ -->
+            <Grid Padding="20,24,20,20">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
-                <HorizontalStackLayout Grid.Row="0" Spacing="12" VerticalOptions="Center">
-                    <Frame BackgroundColor="{StaticResource Primary}" CornerRadius="22" 
-                           WidthRequest="44" HeightRequest="44" Padding="0" 
+
+                <HorizontalStackLayout Grid.Row="0" Spacing="14" VerticalOptions="Center">
+                    <Frame BackgroundColor="{StaticResource Primary}" CornerRadius="24" 
+                           WidthRequest="48" HeightRequest="48" Padding="0" 
                            BorderColor="Transparent" HasShadow="False">
-                        <Label Text="N" FontSize="22" FontAttributes="Bold" TextColor="White"
+                        <Label Text="N" FontSize="24" FontAttributes="Bold" TextColor="White"
                                HorizontalOptions="Center" VerticalOptions="Center" />
                     </Frame>
                     <VerticalStackLayout VerticalOptions="Center" Spacing="2">
-                        <Label Text="NOVASTREAM" FontSize="20" FontAttributes="Bold" TextColor="White" 
-                               CharacterSpacing="2" />
+                        <Label Text="NOVASTREAM" FontSize="22" FontAttributes="Bold" TextColor="White" 
+                               CharacterSpacing="3" />
                         <Label Text="{Binding WelcomeMessage}" TextColor="{StaticResource TextSecondary}" FontSize="13" />
                     </VerticalStackLayout>
                 </HorizontalStackLayout>
 
-                <!-- Stats rapides -->
-                <HorizontalStackLayout Grid.Row="1" Spacing="20" Margin="0,14,0,0">
-                    <Frame BackgroundColor="{StaticResource Surface}" CornerRadius="10" Padding="12,8"
+                <!-- Stats -->
+                <HorizontalStackLayout Grid.Row="1" Spacing="12" Margin="0,16,0,0">
+                    <Frame BackgroundColor="{StaticResource SurfaceCard}" CornerRadius="14" Padding="14,10"
                            BorderColor="{StaticResource CardBorder}" HasShadow="False">
                         <HorizontalStackLayout Spacing="8">
-                            <Label Text="{Binding SourceCount}" FontSize="18" FontAttributes="Bold" 
+                            <Label Text="{Binding SourceCount}" FontSize="20" FontAttributes="Bold" 
                                    TextColor="{StaticResource Primary}" VerticalOptions="Center" />
                             <Label Text="Sources" FontSize="12" TextColor="{StaticResource TextSecondary}" 
                                    VerticalOptions="Center" />
                         </HorizontalStackLayout>
                     </Frame>
-                    <Frame BackgroundColor="{StaticResource Surface}" CornerRadius="10" Padding="12,8"
+                    <Frame BackgroundColor="{StaticResource SurfaceCard}" CornerRadius="14" Padding="14,10"
                            BorderColor="{StaticResource CardBorder}" HasShadow="False">
                         <HorizontalStackLayout Spacing="8">
-                            <Label Text="{Binding FavoriteCount}" FontSize="18" FontAttributes="Bold" 
-                                   TextColor="{StaticResource FavoriteGold}" VerticalOptions="Center" />
+                            <Label Text="{Binding FavoriteCount}" FontSize="20" FontAttributes="Bold" 
+                                   TextColor="{StaticResource Accent}" VerticalOptions="Center" />
                             <Label Text="Favoris" FontSize="12" TextColor="{StaticResource TextSecondary}" 
                                    VerticalOptions="Center" />
                         </HorizontalStackLayout>
@@ -62,30 +64,30 @@
             <ActivityIndicator IsRunning="{Binding IsLoading}" Color="{StaticResource Primary}" 
                                Margin="0,10" />
 
-            <!-- Chaines populaires -->
-            <VerticalStackLayout Spacing="10" IsVisible="{Binding HasPopularChannels}">
-                <Label Text="CHAINES POPULAIRES" Style="{StaticResource TitleLabel}" Margin="16,0" />
-                <CollectionView ItemsSource="{Binding PopularChannels}" HeightRequest="90">
+            <!-- ============ CHAINES POPULAIRES ============ -->
+            <VerticalStackLayout Spacing="12" IsVisible="{Binding HasPopularChannels}">
+                <Label Text="CHAINES POPULAIRES" Style="{StaticResource SectionTitle}" Margin="20,0" />
+                <CollectionView ItemsSource="{Binding PopularChannels}" HeightRequest="100">
                     <CollectionView.ItemsLayout>
                         <LinearItemsLayout Orientation="Horizontal" ItemSpacing="10" />
                     </CollectionView.ItemsLayout>
                     <CollectionView.Header>
-                        <BoxView WidthRequest="16" Color="Transparent" />
+                        <BoxView WidthRequest="20" Color="Transparent" />
                     </CollectionView.Header>
                     <CollectionView.ItemTemplate>
                         <DataTemplate x:DataType="models:Channel">
-                            <Frame BackgroundColor="{StaticResource Surface}" CornerRadius="10" 
+                            <Frame BackgroundColor="{StaticResource SurfaceCard}" CornerRadius="14" 
                                    Padding="0" BorderColor="{StaticResource CardBorder}" HasShadow="False"
-                                   WidthRequest="130" HeightRequest="80" IsClippedToBounds="True">
+                                   WidthRequest="140" HeightRequest="90" IsClippedToBounds="True">
                                 <Frame.GestureRecognizers>
                                     <TapGestureRecognizer Tapped="OnChannelTapped" />
                                 </Frame.GestureRecognizers>
                                 <Grid>
                                     <Image Source="{Binding LogoUrl}" Aspect="AspectFit" 
-                                           Margin="8" Opacity="0.8" />
-                                    <BoxView Color="#80000000" VerticalOptions="End" HeightRequest="28" />
-                                    <Label Text="{Binding Name}" FontSize="9" TextColor="White"
-                                           VerticalOptions="End" Margin="6,0,6,4"
+                                           Margin="10" Opacity="0.85" />
+                                    <BoxView Color="#80000000" VerticalOptions="End" HeightRequest="30" />
+                                    <Label Text="{Binding Name}" FontSize="10" TextColor="White"
+                                           VerticalOptions="End" Margin="8,0,8,5"
                                            LineBreakMode="TailTruncation" FontAttributes="Bold" />
                                 </Grid>
                             </Frame>
@@ -94,115 +96,96 @@
                 </CollectionView>
             </VerticalStackLayout>
 
-            <!-- Films tendance -->
-            <VerticalStackLayout Spacing="10" IsVisible="{Binding HasTrendingMovies}">
-                <Label Text="FILMS TENDANCE" Style="{StaticResource TitleLabel}" Margin="16,0" />
-                <CollectionView ItemsSource="{Binding TrendingMovies}" HeightRequest="200">
+            <!-- ============ FILMS TENDANCE ============ -->
+            <VerticalStackLayout Spacing="12" IsVisible="{Binding HasTrendingMovies}">
+                <Label Text="FILMS TENDANCE" Style="{StaticResource SectionTitle}" Margin="20,0" />
+                <CollectionView ItemsSource="{Binding TrendingMovies}" HeightRequest="220">
                     <CollectionView.ItemsLayout>
                         <LinearItemsLayout Orientation="Horizontal" ItemSpacing="10" />
                     </CollectionView.ItemsLayout>
                     <CollectionView.Header>
-                        <BoxView WidthRequest="16" Color="Transparent" />
+                        <BoxView WidthRequest="20" Color="Transparent" />
                     </CollectionView.Header>
                     <CollectionView.ItemTemplate>
                         <DataTemplate x:DataType="services:VodItem">
-                            <VerticalStackLayout Spacing="4" WidthRequest="120">
-                                <Frame CornerRadius="8" Padding="0" HeightRequest="170"
-                                       BackgroundColor="{StaticResource Surface}" BorderColor="Transparent" 
+                            <VerticalStackLayout Spacing="6" WidthRequest="130">
+                                <Frame CornerRadius="12" Padding="0" HeightRequest="185"
+                                       BackgroundColor="{StaticResource SurfaceCard}" 
+                                       BorderColor="{StaticResource CardBorder}" 
                                        HasShadow="False" IsClippedToBounds="True">
                                     <Frame.GestureRecognizers>
                                         <TapGestureRecognizer Tapped="OnMovieTapped" />
                                     </Frame.GestureRecognizers>
-                                    <Image Source="{Binding StreamIcon}" Aspect="AspectFill" />
+                                    <Grid>
+                                        <Image Source="{Binding StreamIcon}" Aspect="AspectFill" />
+                                        <Frame CornerRadius="8" Padding="5,3" 
+                                               BackgroundColor="#CC000000" BorderColor="Transparent"
+                                               HasShadow="False" HorizontalOptions="End" 
+                                               VerticalOptions="Start" Margin="6">
+                                            <Label Text="{Binding Rating5}" FontSize="10" 
+                                                   FontAttributes="Bold" TextColor="{StaticResource Accent}" />
+                                        </Frame>
+                                    </Grid>
                                 </Frame>
-                                <Label Text="{Binding Name}" FontSize="10" TextColor="White"
+                                <Label Text="{Binding Name}" FontSize="11" TextColor="White"
                                        LineBreakMode="TailTruncation" MaxLines="2"
-                                       HorizontalTextAlignment="Center" />
+                                       HorizontalTextAlignment="Center" FontAttributes="Bold" />
                             </VerticalStackLayout>
                         </DataTemplate>
                     </CollectionView.ItemTemplate>
                 </CollectionView>
             </VerticalStackLayout>
 
-            <!-- Historique recent -->
-            <VerticalStackLayout Spacing="10" Padding="16,0">
-                <Label Text="REGARDES RECEMMENT" Style="{StaticResource TitleLabel}" />
-                
-                <CollectionView ItemsSource="{Binding RecentChannels}" HeightRequest="100">
-                    <CollectionView.EmptyView>
-                        <Frame Style="{StaticResource CardFrame}">
-                            <Label Text="Aucune chaine regardee recemment. Allez dans TV Direct pour commencer !" 
-                                   HorizontalTextAlignment="Center" TextColor="{StaticResource TextMuted}" FontSize="13" />
-                        </Frame>
-                    </CollectionView.EmptyView>
-                    <CollectionView.ItemsLayout>
-                        <LinearItemsLayout Orientation="Horizontal" ItemSpacing="10" />
-                    </CollectionView.ItemsLayout>
-                    <CollectionView.ItemTemplate>
-                        <DataTemplate>
-                            <Frame BackgroundColor="{StaticResource Surface}" CornerRadius="10" 
-                                   Padding="10" BorderColor="{StaticResource CardBorder}" HasShadow="False"
-                                   WidthRequest="140">
-                                <VerticalStackLayout Spacing="4" VerticalOptions="Center">
-                                    <Frame BackgroundColor="{StaticResource SurfaceLight}" CornerRadius="8"
-                                           WidthRequest="36" HeightRequest="36" Padding="0" 
-                                           BorderColor="Transparent" HasShadow="False" HorizontalOptions="Center">
-                                        <Label Text=">" FontSize="16" FontAttributes="Bold" TextColor="{StaticResource Primary}"
-                                               HorizontalOptions="Center" VerticalOptions="Center" />
-                                    </Frame>
-                                    <Label Text="{Binding .}" FontSize="10" HorizontalTextAlignment="Center"
-                                           TextColor="White" LineBreakMode="TailTruncation" MaxLines="2" />
-                                </VerticalStackLayout>
-                            </Frame>
-                        </DataTemplate>
-                    </CollectionView.ItemTemplate>
-                </CollectionView>
-            </VerticalStackLayout>
-
-            <!-- Actions rapides -->
-            <VerticalStackLayout Spacing="10" Padding="16,0">
-                <Label Text="ACCES RAPIDE" Style="{StaticResource TitleLabel}" />
-                <Grid ColumnDefinitions="*, *, *" ColumnSpacing="10">
-                    <Frame Grid.Column="0" Style="{StaticResource CardFrame}" Padding="10">
-                        <VerticalStackLayout Spacing="6" HorizontalOptions="Center">
-                            <Frame BackgroundColor="{StaticResource Primary}" CornerRadius="20"
-                                   WidthRequest="40" HeightRequest="40" Padding="0" 
+            <!-- ============ ACCES RAPIDE ============ -->
+            <VerticalStackLayout Spacing="12" Padding="20,0">
+                <Label Text="ACCES RAPIDE" Style="{StaticResource SectionTitle}" />
+                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10">
+                    <Frame Grid.Column="0" BackgroundColor="{StaticResource SurfaceCard}" 
+                           CornerRadius="16" Padding="12" 
+                           BorderColor="{StaticResource CardBorder}" HasShadow="False">
+                        <VerticalStackLayout Spacing="8" HorizontalOptions="Center">
+                            <Frame BackgroundColor="{StaticResource Primary}" CornerRadius="22"
+                                   WidthRequest="44" HeightRequest="44" Padding="0" 
                                    BorderColor="Transparent" HasShadow="False" HorizontalOptions="Center">
-                                <Label Text=">" FontSize="18" FontAttributes="Bold" TextColor="White"
+                                <Label Text="▶" FontSize="18" TextColor="White"
                                        HorizontalOptions="Center" VerticalOptions="Center" />
                             </Frame>
                             <Label Text="TV Direct" FontSize="11" TextColor="{StaticResource TextSecondary}" 
-                                   HorizontalTextAlignment="Center" />
+                                   HorizontalTextAlignment="Center" FontAttributes="Bold" />
                         </VerticalStackLayout>
                         <Frame.GestureRecognizers>
                             <TapGestureRecognizer Tapped="OnNavigateToLiveTv" />
                         </Frame.GestureRecognizers>
                     </Frame>
-                    <Frame Grid.Column="1" Style="{StaticResource CardFrame}" Padding="10">
-                        <VerticalStackLayout Spacing="6" HorizontalOptions="Center">
-                            <Frame BackgroundColor="{StaticResource AccentBlue}" CornerRadius="20"
-                                   WidthRequest="40" HeightRequest="40" Padding="0" 
+                    <Frame Grid.Column="1" BackgroundColor="{StaticResource SurfaceCard}" 
+                           CornerRadius="16" Padding="12" 
+                           BorderColor="{StaticResource CardBorder}" HasShadow="False">
+                        <VerticalStackLayout Spacing="8" HorizontalOptions="Center">
+                            <Frame BackgroundColor="{StaticResource AccentBlue}" CornerRadius="22"
+                                   WidthRequest="44" HeightRequest="44" Padding="0" 
                                    BorderColor="Transparent" HasShadow="False" HorizontalOptions="Center">
                                 <Label Text="F" FontSize="18" FontAttributes="Bold" TextColor="White"
                                        HorizontalOptions="Center" VerticalOptions="Center" />
                             </Frame>
                             <Label Text="Films" FontSize="11" TextColor="{StaticResource TextSecondary}" 
-                                   HorizontalTextAlignment="Center" />
+                                   HorizontalTextAlignment="Center" FontAttributes="Bold" />
                         </VerticalStackLayout>
                         <Frame.GestureRecognizers>
                             <TapGestureRecognizer Tapped="OnNavigateToVod" />
                         </Frame.GestureRecognizers>
                     </Frame>
-                    <Frame Grid.Column="2" Style="{StaticResource CardFrame}" Padding="10">
-                        <VerticalStackLayout Spacing="6" HorizontalOptions="Center">
-                            <Frame BackgroundColor="{StaticResource Accent}" CornerRadius="20"
-                                   WidthRequest="40" HeightRequest="40" Padding="0" 
+                    <Frame Grid.Column="2" BackgroundColor="{StaticResource SurfaceCard}" 
+                           CornerRadius="16" Padding="12" 
+                           BorderColor="{StaticResource CardBorder}" HasShadow="False">
+                        <VerticalStackLayout Spacing="8" HorizontalOptions="Center">
+                            <Frame BackgroundColor="{StaticResource Accent}" CornerRadius="22"
+                                   WidthRequest="44" HeightRequest="44" Padding="0" 
                                    BorderColor="Transparent" HasShadow="False" HorizontalOptions="Center">
                                 <Label Text="+" FontSize="18" FontAttributes="Bold" TextColor="White"
                                        HorizontalOptions="Center" VerticalOptions="Center" />
                             </Frame>
                             <Label Text="Sources" FontSize="11" TextColor="{StaticResource TextSecondary}" 
-                                   HorizontalTextAlignment="Center" />
+                                   HorizontalTextAlignment="Center" FontAttributes="Bold" />
                         </VerticalStackLayout>
                         <Frame.GestureRecognizers>
                             <TapGestureRecognizer Tapped="OnNavigateToSources" />
@@ -211,12 +194,14 @@
                 </Grid>
             </VerticalStackLayout>
 
-            <!-- Info app -->
-            <Frame Style="{StaticResource CardFrame}" Margin="16,0,16,10">
+            <!-- ============ VERSION INFO ============ -->
+            <Frame BackgroundColor="{StaticResource SurfaceCard}" CornerRadius="14" 
+                   Padding="14,10" Margin="20,0,20,10"
+                   BorderColor="{StaticResource CardBorder}" HasShadow="False">
                 <HorizontalStackLayout Spacing="10">
                     <Frame BackgroundColor="{StaticResource Primary}" CornerRadius="6" 
-                           Padding="6,3" BorderColor="Transparent" HasShadow="False">
-                        <Label Text="v3.4" FontSize="10" TextColor="White" FontAttributes="Bold" />
+                           Padding="8,4" BorderColor="Transparent" HasShadow="False">
+                        <Label Text="v4.0" FontSize="10" TextColor="White" FontAttributes="Bold" />
                     </Frame>
                     <Label Text="NovaStream - Lecteur IPTV Premium" FontSize="12" 
                            TextColor="{StaticResource TextMuted}" VerticalOptions="Center" />

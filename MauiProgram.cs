@@ -1,3 +1,4 @@
+using CommunityToolkit.Maui;
 using Microsoft.Extensions.Logging;
 
 namespace NovaStreamMobile
@@ -9,6 +10,8 @@ namespace NovaStreamMobile
             var builder = MauiApp.CreateBuilder();
             builder
                 .UseMauiApp<App>()
+                .UseMauiCommunityToolkit()
+                .UseMauiCommunityToolkitMediaElement()
                 .ConfigureFonts(fonts =>
                 {
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
@@ -16,7 +19,7 @@ namespace NovaStreamMobile
                 });
 
 #if DEBUG
-    		builder.Logging.AddDebug();
+            builder.Logging.AddDebug();
 #endif
 
             // Handler global pour les exceptions non gerees
@@ -29,7 +32,7 @@ namespace NovaStreamMobile
             TaskScheduler.UnobservedTaskException += (sender, args) =>
             {
                 System.Diagnostics.Debug.WriteLine($"[CRASH] UnobservedTaskException: {args.Exception?.Message}");
-                args.SetObserved(); // Empeche le crash de l'app
+                args.SetObserved();
             };
 
             return builder.Build();

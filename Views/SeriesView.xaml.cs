@@ -1,34 +1,9 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Maui.Controls;
+using CommunityToolkit.Maui.Views;
 using NovaStreamMobile.Models;
 using NovaStreamMobile.Services;
-using LibVLCSharp.Shared;
-#if ANDROID
-using Android.App;
-using Android.Content;
-using LibVLCSharp.Platforms.Android;
-#endif
 
 namespace NovaStreamMobile.Views
 {
-    public class SeriesDisplayItem
-    {
-        public string Name { get; set; } = "";
-        public string ImageUrl { get; set; } = "";
-        public string Rating { get; set; } = "";
-        public string Plot { get; set; } = "";
-        public string Year { get; set; } = "";
-        public string Genre { get; set; } = "";
-        public bool HasRating => !string.IsNullOrEmpty(Rating) && Rating != "0" && Rating != "0.0";
-        public bool HasYear => !string.IsNullOrEmpty(Year) && Year.Length >= 4;
-        public int Id { get; set; }
-    }
-
     public partial class SeriesView : ContentPage
     {
         private readonly XtreamService _xtreamService;
@@ -43,60 +18,39 @@ namespace NovaStreamMobile.Views
         private int _displayedCount = 0;
         private const int PageSize = 60;
 
-        // Lecteur video integre
-        private LibVLC? _libVLC;
-        private MediaPlayer? _mediaPlayer;
-        private Media? _currentMedia;
-        private bool _videoViewReady = false;
-        private bool _isFullscreen = false;
+        // Player state
         private string _currentEpisodeUrl = "";
         private string _currentEpisodeName = "";
-
-#if ANDROID
-        private LibVLCSharp.Platforms.Android.VideoView? _androidVideoView;
-#endif
+        private bool _isMuted = false;
 
         public SeriesView()
         {
             InitializeComponent();
             _xtreamService = new XtreamService();
             _storageService = new StorageService();
-            InitializePlayer();
             LoadSource();
-        }
 
-        private void InitializePlayer()
-        {
-            try
+            Player.MediaOpened += (s, e) =>
             {
-                _libVLC = new LibVLC("--no-osd", "--network-caching=3000");
-                _mediaPlayer = new MediaPlayer(_libVLC);
-                _mediaPlayer.Playing += (s, e) => MainThread.BeginInvokeOnMainThread(() =>
+                MainThread.BeginInvokeOnMainThread(() =>
                 {
-                    try { PlayPauseBtn.Text = "||"; PlayerLoading.IsRunning = false; } catch { }
+                    try { PlayerLoading.IsRunning = false; BtnPlayPause.Text = "⏸"; } catch { }
                 });
-                _mediaPlayer.Paused += (s, e) => MainThread.BeginInvokeOnMainThread(() =>
-                {
-                    try { PlayPauseBtn.Text = ">"; } catch { }
-                });
-                _mediaPlayer.Stopped += (s, e) => MainThread.BeginInvokeOnMainThread(() =>
-                {
-                    try { PlayPauseBtn.Text = ">"; } catch { }
-                });
-                _mediaPlayer.EncounteredError += (s, e) => MainThread.BeginInvokeOnMainThread(() =>
+            };
+
+            Player.MediaFailed += (s, e) =>
+            {
+                MainThread.BeginInvokeOnMainThread(() =>
                 {
                     try
                     {
                         PlayerLoading.IsRunning = false;
-                        ErrorLabel.Text = "Erreur de lecture. Essayez avec le lecteur externe.";
+                        ErrorLabel.Text = "Erreur de lecture. Essayez le lecteur externe.";
+                        ErrorLabel.IsVisible = true;
                     }
                     catch { }
                 });
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[SeriesView] InitializePlayer error: {ex}");
-            }
+            };
         }
 
         private void LoadSource()
@@ -112,9 +66,6 @@ namespace NovaStreamMobile.Views
             base.OnAppearing();
             try
             {
-                if (!_videoViewReady)
-                    _ = AttachVideoViewAsync();
-
                 if (_source != null && _seriesCategories.Count == 0)
                     _ = LoadCategoriesAsync();
             }
@@ -124,78 +75,6 @@ namespace NovaStreamMobile.Views
             }
         }
 
-        private async Task AttachVideoViewAsync()
-        {
-            if (_mediaPlayer == null) { _videoViewReady = true; return; }
-
-#if ANDROID
-            try
-            {
-                var activity = Microsoft.Maui.ApplicationModel.Platform.CurrentActivity;
-                if (activity == null) { _videoViewReady = true; return; }
-
-                _androidVideoView = new LibVLCSharp.Platforms.Android.VideoView(activity);
-
-                var placeholder = new Microsoft.Maui.Controls.ContentView();
-                placeholder.Content = new BoxView { Color = Colors.Black };
-                VideoContainer.Content = placeholder;
-
-                await Task.Delay(300);
-
-                bool attached = false;
-                for (int attempt = 0; attempt < 10; attempt++)
-                {
-                    try
-                    {
-                        attached = await MainThread.InvokeOnMainThreadAsync(() =>
-                        {
-                            try
-                            {
-                                var handler = VideoContainer.Handler;
-                                if (handler?.PlatformView is Android.Views.ViewGroup container)
-                                {
-                                    container.RemoveAllViews();
-                                    if (_androidVideoView.Parent is Android.Views.ViewGroup oldParent)
-                                        oldParent.RemoveView(_androidVideoView);
-
-                                    container.AddView(_androidVideoView, new Android.Views.ViewGroup.LayoutParams(
-                                        Android.Views.ViewGroup.LayoutParams.MatchParent,
-                                        Android.Views.ViewGroup.LayoutParams.MatchParent));
-                                    return true;
-                                }
-                                return false;
-                            }
-                            catch { return false; }
-                        });
-                        if (attached) break;
-                    }
-                    catch { }
-                    await Task.Delay(200 * (attempt + 1));
-                }
-
-                if (attached)
-                {
-                    await Task.Delay(500);
-                    await MainThread.InvokeOnMainThreadAsync(() =>
-                    {
-                        try { _androidVideoView.MediaPlayer = _mediaPlayer; }
-                        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[SeriesView] MediaPlayer assign error: {ex}"); }
-                    });
-                    await Task.Delay(300);
-                }
-
-                _videoViewReady = true;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[SeriesView] AttachVideoView error: {ex}");
-                _videoViewReady = true;
-            }
-#else
-            _videoViewReady = true;
-#endif
-        }
-
         // ==================== CHARGEMENT CATEGORIES & SERIES ====================
 
         private async Task LoadCategoriesAsync()
@@ -203,7 +82,6 @@ namespace NovaStreamMobile.Views
             if (_source == null || _source.Type != SourceType.Xtream)
             {
                 LoadingIndicator.IsRunning = false;
-                EmptyLabel.Text = "Aucune source Xtream configuree.\nAjoutez-en une dans l'onglet Sources.";
                 return;
             }
 
@@ -216,13 +94,13 @@ namespace NovaStreamMobile.Views
                 UpdateCategoriesBar(_seriesCategories);
                 StatusLabel.Text = $"{_seriesCategories.Count} categories de series";
                 LoadingIndicator.IsRunning = false;
-                EmptyLabel.Text = "Selectionnez une categorie";
-                ErrorLabel.Text = "";
+                ErrorLabel.IsVisible = false;
             }
             catch (Exception ex)
             {
                 LoadingIndicator.IsRunning = false;
                 ErrorLabel.Text = $"Erreur: {ex.Message}";
+                ErrorLabel.IsVisible = true;
                 StatusLabel.Text = "Echec du chargement";
             }
         }
@@ -237,8 +115,7 @@ namespace NovaStreamMobile.Views
             var ct = _loadCts.Token;
 
             LoadingIndicator.IsRunning = true;
-            EmptyLabel.Text = "Chargement...";
-            ErrorLabel.Text = "";
+            ErrorLabel.IsVisible = false;
             LoadMoreButton.IsVisible = false;
             _allItems.Clear();
             _displayedCount = 0;
@@ -267,7 +144,7 @@ namespace NovaStreamMobile.Views
             catch (Exception ex)
             {
                 ErrorLabel.Text = $"Erreur: {ex.Message}";
-                EmptyLabel.Text = "Echec du chargement";
+                ErrorLabel.IsVisible = true;
                 StatusLabel.Text = "";
             }
 
@@ -293,13 +170,14 @@ namespace NovaStreamMobile.Views
                 var btn = new Button
                 {
                     Text = CleanCategoryName(cat.CategoryName),
-                    BackgroundColor = isSelected ? Color.FromArgb("#E50914") : Color.FromArgb("#1F1F1F"),
-                    TextColor = Colors.White,
-                    FontSize = 11,
-                    CornerRadius = 16,
-                    HeightRequest = 32,
-                    Padding = new Thickness(12, 0),
-                    BorderColor = isSelected ? Color.FromArgb("#E50914") : Color.FromArgb("#333333"),
+                    BackgroundColor = isSelected ? Color.FromArgb("#E50914") : Color.FromArgb("#252540"),
+                    TextColor = isSelected ? Colors.White : Color.FromArgb("#A0A0B8"),
+                    FontSize = 12,
+                    CornerRadius = 20,
+                    HeightRequest = 36,
+                    Padding = new Thickness(14, 0),
+                    FontAttributes = FontAttributes.Bold,
+                    BorderColor = isSelected ? Color.FromArgb("#E50914") : Color.FromArgb("#353550"),
                     BorderWidth = 1
                 };
                 string catId = cat.CategoryId;
@@ -331,17 +209,8 @@ namespace NovaStreamMobile.Views
             var filteredList = filtered.ToList();
             _displayedCount = Math.Min(PageSize, filteredList.Count);
 
-            ContentCollection.ItemsSource = new ObservableCollection<SeriesDisplayItem>(
-                filteredList.Take(_displayedCount));
-
+            SeriesList.ItemsSource = filteredList.Take(_displayedCount).ToList();
             LoadMoreButton.IsVisible = filteredList.Count > _displayedCount;
-
-            if (!filteredList.Any())
-            {
-                EmptyLabel.Text = string.IsNullOrWhiteSpace(_searchText)
-                    ? "Aucune serie dans cette categorie."
-                    : $"Aucun resultat pour '{_searchText}'.";
-            }
         }
 
         // ==================== EVENT HANDLERS ====================
@@ -361,10 +230,7 @@ namespace NovaStreamMobile.Views
 
             var filteredList = filtered.ToList();
             _displayedCount = Math.Min(_displayedCount + PageSize, filteredList.Count);
-
-            ContentCollection.ItemsSource = new ObservableCollection<SeriesDisplayItem>(
-                filteredList.Take(_displayedCount));
-
+            SeriesList.ItemsSource = filteredList.Take(_displayedCount).ToList();
             LoadMoreButton.IsVisible = filteredList.Count > _displayedCount;
         }
 
@@ -372,10 +238,13 @@ namespace NovaStreamMobile.Views
         {
             try
             {
-                var frame = sender as Frame;
-                if (frame?.BindingContext is not SeriesDisplayItem item) return;
+                SeriesDisplayItem? item = null;
+                if (sender is Frame frame)
+                    item = frame.BindingContext as SeriesDisplayItem;
+                else if (sender is VisualElement ve)
+                    item = ve.BindingContext as SeriesDisplayItem;
 
-                if (_source == null) return;
+                if (item == null || _source == null) return;
 
                 StatusLabel.Text = "Chargement des details...";
 
@@ -429,7 +298,7 @@ namespace NovaStreamMobile.Views
                     if (!string.IsNullOrEmpty(episode.Url))
                     {
                         string epName = $"{item.Name} - {selectedSeason} - {selectedEp}";
-                        await PlayEpisodeAsync(epName, episode.Url);
+                        PlayEpisode(epName, episode.Url);
                     }
                     else
                     {
@@ -442,151 +311,71 @@ namespace NovaStreamMobile.Views
             catch (Exception ex)
             {
                 ErrorLabel.Text = $"Erreur: {ex.Message}";
+                ErrorLabel.IsVisible = true;
                 StatusLabel.Text = "";
             }
         }
 
-        // ==================== LECTEUR VIDEO INTEGRE ====================
+        // ==================== LECTEUR VIDEO (MediaElement) ====================
 
-        private async Task PlayEpisodeAsync(string name, string url)
+        private void PlayEpisode(string name, string url)
         {
-            if (_mediaPlayer == null || _libVLC == null)
-            {
-                await OpenInExternalPlayerAsync(url, name);
-                return;
-            }
-
             try
             {
-                PlayerSection.IsVisible = true;
-                NowPlayingLabel.Text = name;
                 _currentEpisodeName = name;
                 _currentEpisodeUrl = url;
+                NowPlayingLabel.Text = name;
+                PlayerSection.IsVisible = true;
                 PlayerLoading.IsRunning = true;
-                ErrorLabel.Text = "";
+                ErrorLabel.IsVisible = false;
 
-                // Attendre que la VideoView soit prete
-                for (int i = 0; i < 50; i++)
-                {
-                    if (_videoViewReady) break;
-                    await Task.Delay(100);
-                }
-                await Task.Delay(500);
-
-                // Arreter la lecture en cours
-                try
-                {
-                    if (_mediaPlayer.IsPlaying)
-                    {
-                        _mediaPlayer.Stop();
-                        await Task.Delay(300);
-                    }
-                }
-                catch { }
-
-                try { _currentMedia?.Dispose(); } catch { }
-                _currentMedia = null;
-                await Task.Delay(200);
-
-                // Creer le nouveau media
-                try
-                {
-                    Uri mediaUri;
-                    try
-                    {
-                        mediaUri = new Uri(url);
-                        _currentMedia = new Media(_libVLC, mediaUri);
-                    }
-                    catch (UriFormatException)
-                    {
-                        _currentMedia = new Media(_libVLC, url, FromType.FromLocation);
-                    }
-
-                    _currentMedia.AddOption(":network-caching=3000");
-                    _currentMedia.AddOption(":clock-jitter=0");
-                    _currentMedia.AddOption(":clock-synchro=0");
-                }
-                catch (Exception mediaEx)
-                {
-                    ErrorLabel.Text = $"Erreur creation media: {mediaEx.Message}";
-                    PlayerLoading.IsRunning = false;
-                    return;
-                }
-
-                // Lancer la lecture sur le MainThread
-                await MainThread.InvokeOnMainThreadAsync(() =>
-                {
-                    try
-                    {
-                        if (_mediaPlayer != null && _currentMedia != null)
-                        {
-                            _mediaPlayer.Play(_currentMedia);
-                            System.Diagnostics.Debug.WriteLine($"[SeriesView] Play started: {name}");
-                        }
-                    }
-                    catch (Exception playEx)
-                    {
-                        ErrorLabel.Text = $"Erreur lecture: {playEx.Message}";
-                        PlayerLoading.IsRunning = false;
-                    }
-                });
+                Player.Stop();
+                Player.Source = Microsoft.Maui.Controls.MediaSource.FromUri(url);
+                BtnPlayPause.Text = "⏸";
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[SeriesView] PlayEpisode error: {ex}");
                 ErrorLabel.Text = $"Erreur: {ex.Message}";
+                ErrorLabel.IsVisible = true;
                 PlayerLoading.IsRunning = false;
-                await OpenInExternalPlayerAsync(url, name);
             }
         }
+
+        // ==================== PLAYER CONTROLS ====================
 
         private void OnPlayPauseClicked(object? sender, EventArgs e)
         {
             try
             {
-                if (_mediaPlayer == null) return;
-                if (_mediaPlayer.IsPlaying) _mediaPlayer.Pause();
-                else _mediaPlayer.Play();
+                if (Player.CurrentState == CommunityToolkit.Maui.Core.Primitives.MediaElementState.Playing)
+                {
+                    Player.Pause();
+                    BtnPlayPause.Text = "▶";
+                }
+                else
+                {
+                    Player.Play();
+                    BtnPlayPause.Text = "⏸";
+                }
             }
             catch { }
         }
 
-        private void OnVolumeChanged(object? sender, ValueChangedEventArgs e)
+        private void OnVolumeClicked(object? sender, EventArgs e)
         {
-            try
-            {
-                if (_mediaPlayer != null)
-                    _mediaPlayer.Volume = (int)e.NewValue;
-            }
-            catch { }
+            _isMuted = !_isMuted;
+            Player.ShouldMute = _isMuted;
         }
 
         private void OnClosePlayerClicked(object? sender, EventArgs e)
         {
             try
             {
-                _mediaPlayer?.Stop();
+                Player.Stop();
+                Player.Source = null;
                 PlayerSection.IsVisible = false;
                 NowPlayingLabel.Text = "";
-            }
-            catch { }
-        }
-
-        private void OnFullscreenClicked(object? sender, EventArgs e)
-        {
-            try
-            {
-                _isFullscreen = !_isFullscreen;
-                if (_isFullscreen)
-                {
-                    Shell.SetTabBarIsVisible(this, false);
-                    PlayerSection.HeightRequest = -1;
-                }
-                else
-                {
-                    Shell.SetTabBarIsVisible(this, true);
-                    PlayerSection.HeightRequest = 220;
-                }
+                PlayerLoading.IsRunning = false;
             }
             catch { }
         }
@@ -597,6 +386,13 @@ namespace NovaStreamMobile.Views
                 await OpenInExternalPlayerAsync(_currentEpisodeUrl, _currentEpisodeName);
         }
 
+        private void OnBackToSeriesClicked(object? sender, EventArgs e)
+        {
+            // Not used in current flow (ActionSheet navigation)
+        }
+
+        // ==================== EXTERNAL PLAYER ====================
+
         private async Task OpenInExternalPlayerAsync(string url, string title)
         {
 #if ANDROID
@@ -605,10 +401,10 @@ namespace NovaStreamMobile.Views
                 var activity = Microsoft.Maui.ApplicationModel.Platform.CurrentActivity;
                 if (activity == null) return;
 
-                var intent = new Intent(Intent.ActionView);
+                var intent = new Android.Content.Intent(Android.Content.Intent.ActionView);
                 intent.SetDataAndType(Android.Net.Uri.Parse(url), "video/*");
                 intent.PutExtra("title", title);
-                intent.AddFlags(ActivityFlags.NewTask);
+                intent.AddFlags(Android.Content.ActivityFlags.NewTask);
 
                 if (intent.ResolveActivity(activity.PackageManager!) != null)
                 {
@@ -638,6 +434,27 @@ namespace NovaStreamMobile.Views
         protected override void OnDisappearing()
         {
             base.OnDisappearing();
+            try
+            {
+                Player.Stop();
+                Player.Source = null;
+            }
+            catch { }
         }
+    }
+
+    // Display model for series items
+    public class SeriesDisplayItem
+    {
+        public string Name { get; set; } = "";
+        public string ImageUrl { get; set; } = "";
+        public string Cover => ImageUrl;
+        public string Rating { get; set; } = "";
+        public string Plot { get; set; } = "";
+        public string Year { get; set; } = "";
+        public string Genre { get; set; } = "";
+        public bool HasRating => !string.IsNullOrEmpty(Rating) && Rating != "0" && Rating != "0.0";
+        public bool HasYear => !string.IsNullOrEmpty(Year) && Year.Length >= 4;
+        public int Id { get; set; }
     }
 }

@@ -1,125 +1,198 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
              x:Class="NovaStreamMobile.Views.SeriesView"
-             BackgroundColor="#0A0A0A"
-             Title="Series">
+             BackgroundColor="{StaticResource Background}"
+             Title="Series"
+             Shell.NavBarIsVisible="False">
 
-    <Grid RowDefinitions="Auto, Auto, *" RowSpacing="0">
+    <Grid RowDefinitions="Auto,Auto,*">
 
-        <!-- Zone Lecteur Video integre -->
-        <Grid x:Name="PlayerSection" Grid.Row="0" HeightRequest="220" BackgroundColor="Black"
-              IsVisible="False">
-            <ContentView x:Name="VideoContainer" />
+        <!-- ============ PLAYER SECTION ============ -->
+        <Grid x:Name="PlayerSection" Grid.Row="0" HeightRequest="240" 
+              BackgroundColor="Black" IsVisible="False">
+            
+            <toolkit:MediaElement x:Name="Player"
+                                  ShouldAutoPlay="True"
+                                  ShouldShowPlaybackControls="False"
+                                  Background="Black"
+                                  HorizontalOptions="Fill"
+                                  VerticalOptions="Fill" />
 
-            <Grid>
-                <Frame BackgroundColor="#CC000000" CornerRadius="8" Padding="8,4"
-                       HorizontalOptions="Start" VerticalOptions="Start" Margin="10"
-                       BorderColor="Transparent" HasShadow="False">
-                    <Label x:Name="NowPlayingLabel" Text="" FontSize="12" FontAttributes="Bold" TextColor="White" />
-                </Frame>
+            <BoxView Color="#80000000" VerticalOptions="End" HeightRequest="80"
+                     InputTransparent="True" />
 
-                <Button Text="X" FontSize="14" BackgroundColor="#80000000" TextColor="White"
-                        CornerRadius="15" Padding="8,4" HeightRequest="30" WidthRequest="30"
-                        HorizontalOptions="End" VerticalOptions="Start" Margin="10"
+            <Grid VerticalOptions="End" Padding="12,0,12,8" 
+                  ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="8">
+                <Button x:Name="BtnPlayPause" Grid.Column="0" Text="⏸" 
+                        Style="{StaticResource PlayerControlButton}"
+                        Clicked="OnPlayPauseClicked" />
+                <Label x:Name="NowPlayingLabel" Grid.Column="1" 
+                       Text="" TextColor="White" FontSize="13" 
+                       FontAttributes="Bold" VerticalOptions="Center"
+                       LineBreakMode="TailTruncation" />
+                <Button Grid.Column="2" Text="🔊"
+                        Style="{StaticResource PlayerControlButton}"
+                        Clicked="OnVolumeClicked" />
+                <Button Grid.Column="3" Text="📺"
+                        Style="{StaticResource PlayerControlButton}"
+                        Clicked="OnExternalPlayerClicked" />
+                <Button Grid.Column="4" Text="✕"
+                        Style="{StaticResource PlayerControlButton}"
                         Clicked="OnClosePlayerClicked" />
-
-                <Frame BackgroundColor="#99000000" CornerRadius="0" Padding="8" VerticalOptions="End"
-                       BorderColor="Transparent" HasShadow="False">
-                    <Grid ColumnDefinitions="Auto, *, Auto, Auto" ColumnSpacing="8">
-                        <Button Grid.Column="0" x:Name="PlayPauseBtn" Text=">"
-                                FontSize="18" BackgroundColor="Transparent" TextColor="White"
-                                WidthRequest="40" HeightRequest="40" Padding="0"
-                                Clicked="OnPlayPauseClicked" />
-                        <Grid Grid.Column="1" ColumnDefinitions="Auto, *">
-                            <Label Text="Vol" VerticalOptions="Center" Margin="0,0,5,0" TextColor="White" FontSize="10" />
-                            <Slider x:Name="VolumeSlider" Grid.Column="1" Minimum="0" Maximum="100" Value="100"
-                                    MinimumTrackColor="#E50914" MaximumTrackColor="#555555" ThumbColor="White"
-                                    ValueChanged="OnVolumeChanged" />
-                        </Grid>
-                        <Button Grid.Column="2" Text="[ ]" FontSize="12" BackgroundColor="Transparent" TextColor="White"
-                                WidthRequest="36" HeightRequest="36" Padding="0" Clicked="OnFullscreenClicked" />
-                        <Button Grid.Column="3" Text="Ext" FontSize="10" BackgroundColor="#80000000" TextColor="White"
-                                CornerRadius="15" Padding="8,4" HeightRequest="30"
-                                Clicked="OnExternalPlayerClicked" />
-                    </Grid>
-                </Frame>
             </Grid>
 
-            <ActivityIndicator x:Name="PlayerLoading" IsRunning="False" Color="#E50914"
-                               HorizontalOptions="Center" VerticalOptions="Center" />
+            <ActivityIndicator x:Name="PlayerLoading" IsRunning="False" 
+                               Color="{StaticResource Primary}"
+                               HorizontalOptions="Center" VerticalOptions="Center"
+                               WidthRequest="40" HeightRequest="40" />
         </Grid>
 
-        <!-- Barre de recherche + categories -->
-        <VerticalStackLayout Grid.Row="1" BackgroundColor="#141414" Spacing="0">
-            <Label x:Name="StatusLabel" Text="" FontSize="11" TextColor="#808080" Margin="12,4,12,0" />
-            <Label x:Name="ErrorLabel" Text="" FontSize="11" TextColor="#E50914" Margin="12,2,12,0" />
+        <!-- ============ HEADER + SEARCH + CATEGORIES ============ -->
+        <VerticalStackLayout Grid.Row="1" Padding="16,12,16,0" Spacing="10">
+            <Grid ColumnDefinitions="*,Auto">
+                <Label Text="Series" Style="{StaticResource PageTitle}" />
+                <Label Grid.Column="1" x:Name="StatusLabel" 
+                       Style="{StaticResource SubtitleLabel}" VerticalOptions="End" />
+            </Grid>
 
-            <Frame Padding="10,0" HeightRequest="38" CornerRadius="20" Margin="12,6,12,4"
-                   BackgroundColor="#1F1F1F" BorderColor="#333333" HasShadow="False">
+            <Label x:Name="ErrorLabel" TextColor="{StaticResource Danger}" 
+                   FontSize="12" IsVisible="False" />
+
+            <!-- Navigation breadcrumb -->
+            <HorizontalStackLayout x:Name="BreadcrumbBar" Spacing="4" IsVisible="False">
+                <Button x:Name="BtnBackToSeries" Text="← Series" 
+                        BackgroundColor="Transparent" TextColor="{StaticResource Primary}"
+                        FontSize="13" FontAttributes="Bold" Padding="0"
+                        Clicked="OnBackToSeriesClicked" />
+                <Label x:Name="BreadcrumbLabel" Text="" TextColor="{StaticResource TextMuted}" 
+                       FontSize="13" VerticalOptions="Center" />
+            </HorizontalStackLayout>
+
+            <Frame BackgroundColor="{StaticResource SurfaceLight}" 
+                   CornerRadius="14" Padding="0" HasShadow="False"
+                   BorderColor="{StaticResource CardBorder}">
                 <Entry x:Name="SearchEntry" Placeholder="Rechercher une serie..."
-                       TextColor="White" PlaceholderColor="#808080" FontSize="14"
-                       VerticalOptions="Center" BackgroundColor="Transparent"
+                       BackgroundColor="Transparent" Margin="14,0"
                        TextChanged="OnSearchTextChanged" />
             </Frame>
 
-            <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never" Margin="0,2,0,6">
-                <HorizontalStackLayout x:Name="CategoriesBar" Spacing="6" Padding="12,0" />
+            <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+                <HorizontalStackLayout x:Name="CategoriesBar" Spacing="8" />
+            </ScrollView>
+
+            <!-- Seasons bar -->
+            <ScrollView x:Name="SeasonsScrollView" Orientation="Horizontal" 
+                        HorizontalScrollBarVisibility="Never" IsVisible="False">
+                <HorizontalStackLayout x:Name="SeasonsBar" Spacing="8" />
             </ScrollView>
         </VerticalStackLayout>
 
-        <!-- Grille de series -->
+        <!-- ============ CONTENT AREA ============ -->
         <Grid Grid.Row="2">
-            <CollectionView x:Name="ContentCollection" Margin="6,4">
+            <!-- Series Grid -->
+            <CollectionView x:Name="SeriesList" Margin="16,8,16,0" IsVisible="True">
                 <CollectionView.EmptyView>
-                    <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="12" Margin="0,60">
-                        <ActivityIndicator x:Name="LoadingIndicator" IsRunning="True" Color="#E50914" />
-                        <Label x:Name="EmptyLabel" Text="Selectionnez une categorie" FontSize="14" TextColor="#808080"
+                    <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" 
+                                         Spacing="8" Padding="20">
+                        <Label Text="📺" FontSize="48" HorizontalOptions="Center" />
+                        <Label Text="Selectionnez une categorie" 
+                               Style="{StaticResource SubtitleLabel}"
                                HorizontalTextAlignment="Center" />
                     </VerticalStackLayout>
                 </CollectionView.EmptyView>
                 <CollectionView.ItemsLayout>
-                    <GridItemsLayout Orientation="Vertical" Span="3" VerticalItemSpacing="8" HorizontalItemSpacing="6" />
+                    <GridItemsLayout Orientation="Vertical" Span="3" 
+                                     HorizontalItemSpacing="8" VerticalItemSpacing="8" />
                 </CollectionView.ItemsLayout>
                 <CollectionView.ItemTemplate>
                     <DataTemplate>
-                        <VerticalStackLayout Spacing="3">
-                            <Frame CornerRadius="8" Padding="0" HeightRequest="165"
-                                   BackgroundColor="#1A1A1A" BorderColor="Transparent" HasShadow="False"
-                                   IsClippedToBounds="True">
-                                <Frame.GestureRecognizers>
-                                    <TapGestureRecognizer Tapped="OnSeriesTapped" />
-                                </Frame.GestureRecognizers>
-                                <Grid>
-                                    <Image Source="{Binding ImageUrl}" Aspect="AspectFill" />
-                                    <BoxView Color="#80000000" VerticalOptions="End" HeightRequest="40" />
-                                    <Frame BackgroundColor="#CC000000" CornerRadius="4" Padding="4,2"
-                                           HorizontalOptions="End" VerticalOptions="Start" Margin="4"
-                                           BorderColor="Transparent" HasShadow="False"
-                                           IsVisible="{Binding HasRating}">
-                                        <Label Text="{Binding Rating}" FontSize="10" TextColor="#FFD700" FontAttributes="Bold" />
-                                    </Frame>
-                                    <Frame BackgroundColor="#CCE50914" CornerRadius="4" Padding="4,2"
-                                           HorizontalOptions="Start" VerticalOptions="End" Margin="4"
-                                           BorderColor="Transparent" HasShadow="False"
-                                           IsVisible="{Binding HasYear}">
-                                        <Label Text="{Binding Year}" FontSize="9" TextColor="White" FontAttributes="Bold" />
-                                    </Frame>
-                                </Grid>
-                            </Frame>
-                            <Label Text="{Binding Name}" FontSize="10" TextColor="White"
-                                   LineBreakMode="TailTruncation" MaxLines="2"
-                                   HorizontalTextAlignment="Center" />
-                        </VerticalStackLayout>
+                        <Frame BackgroundColor="{StaticResource SurfaceCard}"
+                               BorderColor="{StaticResource CardBorder}"
+                               CornerRadius="12" Padding="0" HasShadow="False"
+                               IsClippedToBounds="True">
+                            <Frame.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnSeriesTapped" />
+                            </Frame.GestureRecognizers>
+                            <Grid RowDefinitions="160,Auto">
+                                <Image Grid.Row="0" Source="{Binding Cover}" 
+                                       Aspect="AspectFill" HeightRequest="160" />
+                                <Frame Grid.Row="0" CornerRadius="8" Padding="6,3"
+                                       BackgroundColor="#CC000000" BorderColor="Transparent"
+                                       HasShadow="False" HorizontalOptions="End" 
+                                       VerticalOptions="Start" Margin="6">
+                                    <Label Text="{Binding Rating}" FontSize="10" 
+                                           FontAttributes="Bold" TextColor="{StaticResource Accent}" />
+                                </Frame>
+                                <VerticalStackLayout Grid.Row="1" Padding="8,6" Spacing="2">
+                                    <Label Text="{Binding Name}" FontSize="11" 
+                                           FontAttributes="Bold" TextColor="White"
+                                           LineBreakMode="TailTruncation" MaxLines="2" />
+                                </VerticalStackLayout>
+                            </Grid>
+                        </Frame>
                     </DataTemplate>
                 </CollectionView.ItemTemplate>
             </CollectionView>
 
+            <!-- Episodes List -->
+            <CollectionView x:Name="EpisodesList" Margin="16,8,16,0" IsVisible="False">
+                <CollectionView.EmptyView>
+                    <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" 
+                                         Spacing="8" Padding="20">
+                        <Label Text="Aucun episode" Style="{StaticResource SubtitleLabel}"
+                               HorizontalTextAlignment="Center" />
+                    </VerticalStackLayout>
+                </CollectionView.EmptyView>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Frame BackgroundColor="{StaticResource SurfaceCard}"
+                               BorderColor="{StaticResource CardBorder}"
+                               CornerRadius="12" Padding="12" HasShadow="False"
+                               Margin="0,0,0,6">
+                            <Frame.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnEpisodeTapped" />
+                            </Frame.GestureRecognizers>
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                                <Frame Grid.Column="0" CornerRadius="8" Padding="0" 
+                                       HasShadow="False" IsClippedToBounds="True"
+                                       WidthRequest="80" HeightRequest="50"
+                                       BackgroundColor="{StaticResource SurfaceLight}">
+                                    <Image Source="{Binding Info.MovieImage}" 
+                                           Aspect="AspectFill" />
+                                </Frame>
+                                <VerticalStackLayout Grid.Column="1" Spacing="3" 
+                                                     VerticalOptions="Center">
+                                    <Label Text="{Binding Title}" FontSize="13" 
+                                           FontAttributes="Bold" TextColor="White"
+                                           LineBreakMode="TailTruncation" />
+                                    <Label Text="{Binding Info.Plot}" FontSize="10" 
+                                           TextColor="{StaticResource TextMuted}"
+                                           LineBreakMode="TailTruncation" MaxLines="2" />
+                                </VerticalStackLayout>
+                                <Label Grid.Column="2" Text="▶" FontSize="20" 
+                                       TextColor="{StaticResource Primary}" 
+                                       VerticalOptions="Center" />
+                            </Grid>
+                        </Frame>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <!-- Load more button -->
             <Button x:Name="LoadMoreButton" Text="Charger plus..."
-                    BackgroundColor="#1F1F1F" TextColor="#E50914" FontSize="13"
+                    BackgroundColor="{StaticResource SurfaceLight}" 
+                    TextColor="{StaticResource Primary}" FontSize="13"
                     CornerRadius="20" HeightRequest="36" Margin="40,0,40,12"
                     VerticalOptions="End" IsVisible="False"
-                    Clicked="OnLoadMoreClicked" BorderColor="#333333" BorderWidth="1" />
+                    Clicked="OnLoadMoreClicked" />
         </Grid>
+
+        <!-- Loading overlay -->
+        <ActivityIndicator Grid.Row="2" x:Name="LoadingIndicator" 
+                           IsRunning="False" Color="{StaticResource Primary}"
+                           HorizontalOptions="Center" VerticalOptions="Center"
+                           WidthRequest="40" HeightRequest="40" />
     </Grid>
 </ContentPage>

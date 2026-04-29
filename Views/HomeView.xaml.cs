@@ -1,8 +1,6 @@
 using Microsoft.Maui.Controls;
 using NovaStreamMobile.Models;
 using NovaStreamMobile.Services;
-using System;
-using System.Threading.Tasks;
 
 namespace NovaStreamMobile.Views
 {
@@ -18,77 +16,42 @@ namespace NovaStreamMobile.Views
 
         private void OnNavigateToSources(object? sender, EventArgs e)
         {
-            NavigateToTab(4); // Sources
+            NavigateToTab(4);
         }
 
         private void OnNavigateToLiveTv(object? sender, EventArgs e)
         {
-            NavigateToTab(1); // TV Direct
+            NavigateToTab(1);
         }
 
         private void OnNavigateToVod(object? sender, EventArgs e)
         {
-            NavigateToTab(2); // Films
+            NavigateToTab(2);
         }
 
-        private async void OnChannelTapped(object? sender, TappedEventArgs e)
+        private void OnChannelTapped(object? sender, TappedEventArgs e)
         {
             try
             {
-                var frame = sender as Frame;
-                if (frame?.BindingContext is Channel channel)
-                {
-                    // Naviguer vers TV Direct et lancer la lecture
-                    NavigateToTab(1);
-                    await Task.Delay(500);
-
-                    try
-                    {
-                        var liveTv = Shell.Current?.CurrentPage as LiveTvView;
-                        if (liveTv != null)
-                        {
-                            await liveTv.PlayChannelSafeAsync(channel);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[HomeView] PlayChannel error: {ex}");
-                    }
-                }
+                // Naviguer vers TV Direct - l'utilisateur sélectionnera la chaîne là-bas
+                NavigateToTab(1);
             }
             catch (Exception ex)
             {
-                await DisplayAlert("Erreur", $"Impossible de lancer la lecture: {ex.Message}", "OK");
+                System.Diagnostics.Debug.WriteLine($"[HomeView] OnChannelTapped error: {ex}");
             }
         }
 
-        private async void OnMovieTapped(object? sender, TappedEventArgs e)
+        private void OnMovieTapped(object? sender, TappedEventArgs e)
         {
             try
             {
-                var frame = sender as Frame;
-                if (frame?.BindingContext is VodItem movie)
-                {
-                    bool play = await DisplayAlert(movie.Name, "Lancer la lecture ?", "Lire", "Annuler");
-                    if (play && !string.IsNullOrEmpty(movie.Url))
-                    {
-                        // Naviguer vers l'onglet Films au lieu de TV Direct
-                        NavigateToTab(2);
-                        await Task.Delay(500);
-
-                        try
-                        {
-                            var filmsView = Shell.Current?.CurrentPage as FilmsView;
-                            // Le film sera lu directement dans l'onglet Films
-                            // Pour l'instant on navigue juste vers Films
-                        }
-                        catch { }
-                    }
-                }
+                // Naviguer vers Films - l'utilisateur sélectionnera le film là-bas
+                NavigateToTab(2);
             }
             catch (Exception ex)
             {
-                await DisplayAlert("Erreur", $"Impossible de lancer la lecture: {ex.Message}", "OK");
+                System.Diagnostics.Debug.WriteLine($"[HomeView] OnMovieTapped error: {ex}");
             }
         }
 

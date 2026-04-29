@@ -80,9 +80,9 @@
             <Frame Style="{StaticResource CardFrame}" Margin="0,0,0,30">
                 <VerticalStackLayout Spacing="8">
                     <Label Text="A PROPOS" FontSize="12" FontAttributes="Bold" TextColor="{StaticResource Primary}" />
-                    <Label Text="NovaStream v3.0" TextColor="White" FontSize="14" />
+                    <Label Text="NovaStream v4.0" TextColor="White" FontSize="14" />
                     <Label Text="Lecteur IPTV premium pour Android" TextColor="{StaticResource TextMuted}" FontSize="12" />
-                    <Label Text="Propulse par LibVLC et .NET MAUI" TextColor="{StaticResource TextMuted}" FontSize="12" />
+                    <Label Text="Propulse par MediaElement et .NET MAUI" TextColor="{StaticResource TextMuted}" FontSize="12" />
                 </VerticalStackLayout>
             </Frame>
 

@@ -1,181 +1,135 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             xmlns:vm="clr-namespace:NovaStreamMobile.ViewModels"
-             xmlns:models="clr-namespace:NovaStreamMobile.Models"
+             xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
              x:Class="NovaStreamMobile.Views.LiveTvView"
              BackgroundColor="{StaticResource Background}"
-             Title="TV Direct">
-    
-    <ContentPage.BindingContext>
-        <vm:LiveTvViewModel />
-    </ContentPage.BindingContext>
+             Title="TV Direct"
+             Shell.NavBarIsVisible="False">
 
-    <Grid x:Name="MainGrid">
-        <Grid.RowDefinitions>
-            <RowDefinition x:Name="PlayerRow" Height="220" />
-            <RowDefinition x:Name="SearchRow" Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
+    <Grid RowDefinitions="Auto,Auto,*">
 
-        <!-- Zone Lecteur Video -->
-        <Grid Grid.Row="0" BackgroundColor="Black">
-            <ContentView x:Name="VideoContainer" />
+        <!-- ============ PLAYER SECTION ============ -->
+        <Grid x:Name="PlayerSection" Grid.Row="0" HeightRequest="240" 
+              BackgroundColor="Black" IsVisible="False">
             
-            <!-- Indicateur de luminosite -->
-            <Frame x:Name="BrightnessIndicator" 
-                   IsVisible="False"
-                   BackgroundColor="#CC000000" 
-                   CornerRadius="10" 
-                   Padding="10" 
-                   HorizontalOptions="Center" 
-                   VerticalOptions="Center" 
-                   BorderColor="Transparent"
-                   HasShadow="False">
-                <VerticalStackLayout Spacing="5" WidthRequest="40">
-                    <Label Text="*" HorizontalOptions="Center" FontSize="20" TextColor="Yellow" />
-                    <ProgressBar x:Name="BrightnessBar" Progress="0.5" ProgressColor="{StaticResource Primary}" 
-                                 HeightRequest="100" Rotation="-90" WidthRequest="100" />
-                </VerticalStackLayout>
-            </Frame>
-            
-            <!-- Controles du lecteur -->
-            <Grid IsVisible="{Binding HasChannel}">
-                <!-- Barre superieure : Sous-titres, PiP -->
-                <HorizontalStackLayout HorizontalOptions="End" VerticalOptions="Start" Margin="10" Spacing="8">
-                    <Button Text="PiP" FontSize="10" BackgroundColor="#80000000" TextColor="White" 
-                            CornerRadius="15" Padding="8,4" HeightRequest="30" Clicked="OnPipClicked" />
-                    <Button x:Name="SubtitleButton" Text="CC" FontSize="10" BackgroundColor="#80000000" TextColor="White" 
-                            CornerRadius="15" Padding="8,4" HeightRequest="30" Clicked="OnSubtitleClicked" />
-                </HorizontalStackLayout>
+            <toolkit:MediaElement x:Name="Player"
+                                  ShouldAutoPlay="True"
+                                  ShouldShowPlaybackControls="False"
+                                  Background="Black"
+                                  HorizontalOptions="Fill"
+                                  VerticalOptions="Fill" />
 
-                <!-- Barre inferieure : Controles -->
-                <Frame BackgroundColor="#99000000" CornerRadius="0" Padding="8" VerticalOptions="End" 
-                       BorderColor="Transparent" HasShadow="False">
-                    <Grid ColumnDefinitions="Auto, Auto, Auto, *, Auto" ColumnSpacing="8">
-                        <Button Grid.Column="0" Text="&lt;&lt;" Command="{Binding PreviousChannelCommand}" 
-                                FontSize="14" BackgroundColor="Transparent" TextColor="White" 
-                                WidthRequest="36" HeightRequest="36" Padding="0" />
-                        <Button Grid.Column="1" x:Name="PlayPauseBtn" Text=">" 
-                                Command="{Binding PlayPauseCommand}" 
-                                FontSize="18" BackgroundColor="Transparent" TextColor="White"
-                                WidthRequest="40" HeightRequest="40" Padding="0" />
-                        <Button Grid.Column="2" Text=">>" Command="{Binding NextChannelCommand}" 
-                                FontSize="14" BackgroundColor="Transparent" TextColor="White" 
-                                WidthRequest="36" HeightRequest="36" Padding="0" />
-                        <Grid Grid.Column="3" ColumnDefinitions="Auto, *">
-                            <Label Text="Vol" VerticalOptions="Center" Margin="0,0,5,0" TextColor="White" FontSize="10" />
-                            <Slider Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding Volume}" 
-                                    MinimumTrackColor="{StaticResource Primary}" MaximumTrackColor="#555555" ThumbColor="White" />
-                        </Grid>
-                        <Button Grid.Column="4" Text="[ ]" FontSize="12" BackgroundColor="Transparent" TextColor="White"
-                                WidthRequest="36" HeightRequest="36" Padding="0" Clicked="OnFullscreenClicked" />
-                    </Grid>
-                </Frame>
+            <!-- Gradient overlay bottom -->
+            <BoxView Color="#80000000" VerticalOptions="End" HeightRequest="80"
+                     InputTransparent="True" />
 
-                <!-- Info chaine en cours -->
-                <Frame BackgroundColor="#CC000000" CornerRadius="8" Padding="8,4" 
-                       HorizontalOptions="Start" VerticalOptions="Start" Margin="10"
-                       BorderColor="Transparent" HasShadow="False">
-                    <Label Text="{Binding CurrentChannelName}" FontSize="12" FontAttributes="Bold" TextColor="White" />
-                </Frame>
+            <!-- Controls overlay -->
+            <Grid VerticalOptions="End" Padding="12,0,12,8" 
+                  ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="8">
+                <Button x:Name="BtnPlayPause" Grid.Column="0" Text="⏸" 
+                        Style="{StaticResource PlayerControlButton}"
+                        Clicked="OnPlayPauseClicked" />
+                <Label x:Name="NowPlayingLabel" Grid.Column="1" 
+                       Text="" TextColor="White" FontSize="13" 
+                       FontAttributes="Bold" VerticalOptions="Center"
+                       LineBreakMode="TailTruncation" />
+                <Button Grid.Column="2" Text="🔊"
+                        Style="{StaticResource PlayerControlButton}"
+                        Clicked="OnVolumeClicked" />
+                <Button Grid.Column="3" Text="📺"
+                        Style="{StaticResource PlayerControlButton}"
+                        Clicked="OnExternalPlayerClicked" />
+                <Button Grid.Column="4" Text="✕"
+                        Style="{StaticResource PlayerControlButton}"
+                        Clicked="OnClosePlayerClicked" />
             </Grid>
 
-            <!-- Ecran d'attente -->
-            <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="8"
-                                 IsVisible="{Binding HasChannel, Converter={StaticResource BoolInvertConverter}}">
-                <Label Text="NOVASTREAM" FontSize="24" FontAttributes="Bold" TextColor="#222222" 
-                       HorizontalTextAlignment="Center" CharacterSpacing="3" />
-                <Label Text="Selectionnez une chaine" TextColor="#444444" 
-                       HorizontalTextAlignment="Center" FontSize="13" />
-            </VerticalStackLayout>
-            
-            <ActivityIndicator IsRunning="{Binding IsLoading}" Color="{StaticResource Primary}" 
-                               HorizontalOptions="Center" VerticalOptions="Center" />
+            <!-- Loading -->
+            <ActivityIndicator x:Name="PlayerLoading" IsRunning="False" 
+                               Color="{StaticResource Primary}"
+                               HorizontalOptions="Center" VerticalOptions="Center"
+                               WidthRequest="40" HeightRequest="40" />
         </Grid>
 
-        <!-- Barre de recherche + categories -->
-        <VerticalStackLayout Grid.Row="1" BackgroundColor="{StaticResource Secondary}" Spacing="0">
-            <!-- Status / Erreur -->
-            <Label Text="{Binding StatusMessage}" FontSize="11" TextColor="{StaticResource TextMuted}" 
-                   Margin="12,6,12,0" />
-            <Label Text="{Binding ErrorMessage}" FontSize="11" TextColor="{StaticResource Danger}" 
-                   Margin="12,2,12,0" IsVisible="{Binding HasError}" />
+        <!-- ============ HEADER + SEARCH + CATEGORIES ============ -->
+        <VerticalStackLayout Grid.Row="1" Padding="16,12,16,0" Spacing="10">
+            <Grid ColumnDefinitions="*,Auto">
+                <Label Text="TV Direct" Style="{StaticResource PageTitle}" />
+                <Label Grid.Column="1" x:Name="StatusLabel" 
+                       Style="{StaticResource SubtitleLabel}" VerticalOptions="End" />
+            </Grid>
 
-            <!-- Recherche -->
-            <Frame Padding="10,0" HeightRequest="38" CornerRadius="20" Margin="12,6,12,4"
-                   BackgroundColor="{StaticResource SurfaceLight}" BorderColor="{StaticResource CardBorder}" HasShadow="False">
-                <Entry Text="{Binding SearchText}" Placeholder="Rechercher des chaines..." 
-                       TextColor="White" PlaceholderColor="{StaticResource TextMuted}" FontSize="14" 
-                       VerticalOptions="Center" BackgroundColor="Transparent" />
+            <Label x:Name="ErrorLabel" TextColor="{StaticResource Danger}" 
+                   FontSize="12" IsVisible="False" />
+
+            <Frame BackgroundColor="{StaticResource SurfaceLight}" 
+                   CornerRadius="14" Padding="0" HasShadow="False"
+                   BorderColor="{StaticResource CardBorder}">
+                <Entry x:Name="SearchEntry" Placeholder="Rechercher une chaine..."
+                       BackgroundColor="Transparent" Margin="14,0"
+                       TextChanged="OnSearchTextChanged" />
             </Frame>
 
-            <!-- Categories horizontales -->
-            <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never" Margin="0,2,0,6">
-                <HorizontalStackLayout x:Name="CategoriesBar" Spacing="6" Padding="12,0" />
+            <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+                <HorizontalStackLayout x:Name="CategoriesBar" Spacing="8" />
             </ScrollView>
         </VerticalStackLayout>
 
-        <!-- Liste des chaines -->
-        <CollectionView Grid.Row="2" ItemsSource="{Binding FilteredChannels}"
-                        SelectionMode="Single"
-                        SelectionChanged="OnChannelSelected"
-                        Margin="8,4">
+        <!-- ============ CHANNELS LIST ============ -->
+        <CollectionView Grid.Row="2" x:Name="ChannelsList" Margin="16,8,16,0"
+                        SelectionMode="Single" SelectionChanged="OnChannelSelected">
             <CollectionView.EmptyView>
-                <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="12" Margin="0,40">
-                    <ActivityIndicator IsRunning="{Binding IsLoading}" Color="{StaticResource Primary}" />
-                    <Label Text="Selectionnez une categorie pour voir les chaines" FontSize="14" 
-                           TextColor="{StaticResource TextMuted}" HorizontalTextAlignment="Center" />
+                <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" 
+                                     Spacing="8" Padding="20">
+                    <Label Text="📡" FontSize="48" HorizontalOptions="Center" />
+                    <Label Text="Selectionnez une categorie" 
+                           Style="{StaticResource SubtitleLabel}"
+                           HorizontalTextAlignment="Center" />
                 </VerticalStackLayout>
             </CollectionView.EmptyView>
             <CollectionView.ItemsLayout>
-                <LinearItemsLayout Orientation="Vertical" ItemSpacing="4" />
+                <LinearItemsLayout Orientation="Vertical" ItemSpacing="6" />
             </CollectionView.ItemsLayout>
             <CollectionView.ItemTemplate>
-                <DataTemplate x:DataType="models:Channel">
-                    <Frame BackgroundColor="{StaticResource Surface}" CornerRadius="10" 
-                           Padding="10" BorderColor="{StaticResource CardBorder}" HasShadow="False">
-                        <Grid ColumnDefinitions="44, *, Auto" ColumnSpacing="10">
-                            <!-- Logo chaine -->
-                            <Frame Grid.Column="0" CornerRadius="8" Padding="0" HeightRequest="44" WidthRequest="44" 
-                                   BackgroundColor="{StaticResource SurfaceLight}" BorderColor="Transparent" HasShadow="False"
+                <DataTemplate>
+                    <Frame BackgroundColor="{StaticResource SurfaceCard}"
+                           BorderColor="{StaticResource CardBorder}"
+                           CornerRadius="14" Padding="12" HasShadow="False">
+                        <Grid ColumnDefinitions="52,*,Auto" ColumnSpacing="12">
+                            <Frame Grid.Column="0" CornerRadius="12" Padding="0"
+                                   WidthRequest="52" HeightRequest="52"
+                                   BackgroundColor="{StaticResource SurfaceLight}"
+                                   BorderColor="Transparent" HasShadow="False"
                                    IsClippedToBounds="True">
-                                <Image Source="{Binding LogoUrl}" Aspect="AspectFit" Margin="2"
-                                       WidthRequest="40" HeightRequest="40" />
+                                <Image Source="{Binding LogoUrl}" Aspect="AspectFill"
+                                       WidthRequest="52" HeightRequest="52" />
                             </Frame>
-
-                            <!-- Info chaine + EPG -->
-                            <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="2">
-                                <Label Text="{Binding Name}" FontAttributes="Bold" FontSize="13" 
-                                       LineBreakMode="TailTruncation" TextColor="White" />
-                                <Label Text="{Binding CurrentProgramTitle}" FontSize="10" 
-                                       TextColor="{StaticResource Accent}" LineBreakMode="TailTruncation" />
-                                <ProgressBar Progress="{Binding CurrentProgramProgress}" 
-                                             ProgressColor="{StaticResource Accent}" HeightRequest="2" Margin="0,2,0,0"
-                                             IsVisible="{Binding HasCurrentProgram}" />
+                            <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="3">
+                                <Label Text="{Binding Name}" FontSize="14" 
+                                       FontAttributes="Bold" TextColor="White"
+                                       LineBreakMode="TailTruncation" />
+                                <Label Text="{Binding CurrentProgramTitle}" 
+                                       FontSize="11" TextColor="{StaticResource TextMuted}"
+                                       LineBreakMode="TailTruncation"
+                                       IsVisible="{Binding HasCurrentProgram}" />
                             </VerticalStackLayout>
-
-                            <!-- Bouton favori -->
-                            <Button Grid.Column="2" Text="*" FontSize="20"
-                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:LiveTvViewModel}}, Path=ToggleFavoriteCommand}"
-                                    CommandParameter="{Binding .}"
-                                    BackgroundColor="Transparent" VerticalOptions="Center"
-                                    WidthRequest="36" HeightRequest="36" Padding="0">
-                                <Button.Style>
-                                    <Style TargetType="Button">
-                                        <Setter Property="TextColor" Value="#444444" />
-                                        <Style.Triggers>
-                                            <DataTrigger TargetType="Button" Binding="{Binding IsFavorite}" Value="True">
-                                                <Setter Property="TextColor" Value="{StaticResource FavoriteGold}" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Button.Style>
-                            </Button>
+                            <Frame Grid.Column="2" CornerRadius="10" Padding="8,4"
+                                   BackgroundColor="#30E50914" BorderColor="Transparent"
+                                   HasShadow="False" VerticalOptions="Center">
+                                <Label Text="EN DIRECT" FontSize="9" FontAttributes="Bold"
+                                       TextColor="{StaticResource Primary}" />
+                            </Frame>
                         </Grid>
                     </Frame>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
         </CollectionView>
+
+        <!-- Loading overlay -->
+        <ActivityIndicator Grid.Row="2" x:Name="LoadingIndicator" 
+                           IsRunning="False" Color="{StaticResource Primary}"
+                           HorizontalOptions="Center" VerticalOptions="Center"
+                           WidthRequest="40" HeightRequest="40" />
     </Grid>
 </ContentPage>

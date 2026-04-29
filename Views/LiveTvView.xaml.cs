@@ -1,511 +1,314 @@
-using Microsoft.Maui.Controls;
+using CommunityToolkit.Maui.Views;
 using NovaStreamMobile.Models;
 using NovaStreamMobile.Services;
 using NovaStreamMobile.ViewModels;
-using System;
-using System.Linq;
-using System.Threading.Tasks;
-using LibVLCSharp.Shared;
-#if ANDROID
-using Android.App;
-using Android.Content;
-using Android.Util;
-using LibVLCSharp.Platforms.Android;
-#endif
 
 namespace NovaStreamMobile.Views
 {
     public partial class LiveTvView : ContentPage
     {
-        private bool _isFullscreen = false;
-        private double _currentBrightness = 0.5;
-        private double _startBrightness;
-        private LiveTvViewModel? _vm;
-        private bool _categoriesBuilt = false;
-        private bool _videoViewReady = false;
-        private bool _attachingVideoView = false;
-
-#if ANDROID
-        private LibVLCSharp.Platforms.Android.VideoView? _androidVideoView;
-#endif
+        private readonly XtreamService _xtreamService = new();
+        private readonly StorageService _storageService = new();
+        private List<XtreamService.XtreamCategory> _categories = new();
+        private List<Channel> _allChannels = new();
+        private string _currentStreamUrl = "";
+        private bool _isMuted = false;
+        private CancellationTokenSource? _searchCts;
 
         public LiveTvView()
         {
             InitializeComponent();
+
+            Player.MediaOpened += (s, e) =>
+            {
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    PlayerLoading.IsRunning = false;
+                    BtnPlayPause.Text = "⏸";
+                });
+            };
+
+            Player.MediaFailed += (s, e) =>
+            {
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    PlayerLoading.IsRunning = false;
+                    ErrorLabel.Text = "Erreur de lecture. Essayez le lecteur externe.";
+                    ErrorLabel.IsVisible = true;
+                });
+            };
         }
 
-        protected override void OnAppearing()
+        protected override async void OnAppearing()
         {
             base.OnAppearing();
-            try
-            {
-                _vm = BindingContext as LiveTvViewModel;
-
-                // Attacher la VideoView si pas encore fait
-                if (!_videoViewReady && !_attachingVideoView)
-                {
-                    _attachingVideoView = true;
-                    _ = AttachVideoViewAsync();
-                }
-
-                if (_vm != null && !_categoriesBuilt)
-                {
-                    _vm.LiveCategories.CollectionChanged += (s, e) =>
-                    {
-                        MainThread.BeginInvokeOnMainThread(() =>
-                        {
-                            try { BuildCategoryButtons(); }
-                            catch { }
-                        });
-                    };
-                    if (_vm.LiveCategories.Count > 0)
-                        BuildCategoryButtons();
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[LiveTvView] OnAppearing error: {ex}");
-            }
+            if (_categories.Count == 0)
+                await LoadCategoriesAsync();
         }
 
-        /// <summary>
-        /// Methode publique pour lancer la lecture de maniere securisee.
-        /// Attend que la VideoView soit prete avant de lancer la lecture.
-        /// Appelee depuis HomeView et VodView apres navigation.
-        /// </summary>
-        public async Task PlayChannelSafeAsync(Channel channel)
+        // ==================== CATEGORIES ====================
+
+        private async Task LoadCategoriesAsync()
         {
             try
             {
-                _vm = BindingContext as LiveTvViewModel;
-                if (_vm == null) return;
+                LoadingIndicator.IsRunning = true;
+                ErrorLabel.IsVisible = false;
+                StatusLabel.Text = "Chargement...";
 
-                // Attendre que la VideoView soit prete (max 5 secondes)
-                for (int i = 0; i < 50; i++)
+                var source = GetSource();
+                if (source == null)
                 {
-                    if (_videoViewReady) break;
-                    await Task.Delay(100);
-                }
-
-                // Delai supplementaire pour la surface Android
-                await Task.Delay(800);
-
-                // Lancer la lecture sur le MainThread
-                await MainThread.InvokeOnMainThreadAsync(() =>
-                {
-                    try
-                    {
-                        _vm.SelectedChannel = channel;
-                        UpdatePlayPauseButton();
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[LiveTvView] PlayChannelSafe error: {ex}");
-                        // Fallback: ouvrir dans un lecteur externe
-                        _ = OpenInExternalPlayerAsync(channel.Url, channel.Name);
-                    }
-                });
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[LiveTvView] PlayChannelSafeAsync error: {ex}");
-                // Fallback: ouvrir dans un lecteur externe
-                await OpenInExternalPlayerAsync(channel.Url, channel.Name);
-            }
-        }
-
-        private async Task AttachVideoViewAsync()
-        {
-            if (_vm?.MediaPlayer == null)
-            {
-                _videoViewReady = true; // Marquer comme pret pour eviter blocage
-                _attachingVideoView = false;
-                return;
-            }
-
-#if ANDROID
-            try
-            {
-                var activity = Microsoft.Maui.ApplicationModel.Platform.CurrentActivity;
-                if (activity == null)
-                {
-                    _videoViewReady = true;
-                    _attachingVideoView = false;
+                    ErrorLabel.Text = "Aucune source configuree. Allez dans Sources.";
+                    ErrorLabel.IsVisible = true;
                     return;
                 }
 
-                // Creer la VideoView SANS assigner le MediaPlayer tout de suite
-                _androidVideoView = new LibVLCSharp.Platforms.Android.VideoView(activity);
+                _categories = await _xtreamService.GetFrenchLiveCategoriesAsync(source);
+                BuildCategoryButtons();
+                StatusLabel.Text = $"{_categories.Count} categories";
 
-                // Creer un ContentView MAUI pour obtenir un handler natif
-                var placeholder = new Microsoft.Maui.Controls.ContentView();
-                placeholder.Content = new BoxView { Color = Colors.Black };
-                VideoContainer.Content = placeholder;
-
-                // Attendre que le handler MAUI soit pret (plusieurs cycles de layout)
-                await Task.Delay(500);
-
-                // Maintenant attacher la VideoView Android au container natif
-                bool attached = false;
-                for (int attempt = 0; attempt < 10; attempt++)
-                {
-                    try
-                    {
-                        attached = await MainThread.InvokeOnMainThreadAsync(() =>
-                        {
-                            try
-                            {
-                                var handler = VideoContainer.Handler;
-                                if (handler?.PlatformView is Android.Views.ViewGroup container)
-                                {
-                                    // 1. D'abord nettoyer le container
-                                    container.RemoveAllViews();
-
-                                    // 2. Retirer la VideoView de son ancien parent si necessaire
-                                    if (_androidVideoView.Parent is Android.Views.ViewGroup oldParent)
-                                        oldParent.RemoveView(_androidVideoView);
-
-                                    // 3. AJOUTER la VideoView au layout AVANT d'assigner le MediaPlayer
-                                    container.AddView(_androidVideoView, new Android.Views.ViewGroup.LayoutParams(
-                                        Android.Views.ViewGroup.LayoutParams.MatchParent,
-                                        Android.Views.ViewGroup.LayoutParams.MatchParent));
-
-                                    System.Diagnostics.Debug.WriteLine("[LiveTvView] VideoView added to container");
-                                    return true;
-                                }
-                                return false;
-                            }
-                            catch (Exception ex)
-                            {
-                                System.Diagnostics.Debug.WriteLine($"[LiveTvView] Attach attempt error: {ex}");
-                                return false;
-                            }
-                        });
-
-                        if (attached) break;
-                    }
-                    catch { }
-
-                    await Task.Delay(200 * (attempt + 1));
-                }
-
-                if (attached)
-                {
-                    // 4. Attendre que la VideoView soit dans le window et ait une surface
-                    await Task.Delay(500);
-
-                    // 5. MAINTENANT assigner le MediaPlayer (APRES que la VideoView est dans le layout)
-                    await MainThread.InvokeOnMainThreadAsync(() =>
-                    {
-                        try
-                        {
-                            _androidVideoView.MediaPlayer = _vm.MediaPlayer;
-                            System.Diagnostics.Debug.WriteLine("[LiveTvView] MediaPlayer assigned to VideoView AFTER layout attachment");
-                        }
-                        catch (Exception ex)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"[LiveTvView] MediaPlayer assignment error: {ex}");
-                        }
-                    });
-
-                    // 6. Attendre encore un peu pour la surface
-                    await Task.Delay(300);
-                }
-
-                _videoViewReady = true;
-                _attachingVideoView = false;
-                System.Diagnostics.Debug.WriteLine($"[LiveTvView] VideoView ready: attached={attached}");
+                if (_categories.Count > 0)
+                    await LoadChannelsAsync(_categories[0].CategoryId, _categories[0].CategoryName);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[LiveTvView] AttachVideoView error: {ex}");
-                _videoViewReady = true;
-                _attachingVideoView = false;
+                ErrorLabel.Text = $"Erreur: {ex.Message}";
+                ErrorLabel.IsVisible = true;
             }
-#else
-            _videoViewReady = true;
-            _attachingVideoView = false;
-#endif
-        }
-
-        /// <summary>
-        /// Ouvre le flux dans un lecteur externe (VLC, MX Player, etc.) comme fallback.
-        /// </summary>
-        private async Task OpenInExternalPlayerAsync(string url, string title)
-        {
-#if ANDROID
-            try
+            finally
             {
-                var activity = Microsoft.Maui.ApplicationModel.Platform.CurrentActivity;
-                if (activity == null) return;
-
-                var intent = new Intent(Intent.ActionView);
-                intent.SetDataAndType(Android.Net.Uri.Parse(url), "video/*");
-                intent.PutExtra("title", title);
-                intent.AddFlags(ActivityFlags.NewTask);
-
-                // Verifier qu'un lecteur externe est disponible
-                if (intent.ResolveActivity(activity.PackageManager!) != null)
-                {
-                    activity.StartActivity(intent);
-                }
-                else
-                {
-                    await MainThread.InvokeOnMainThreadAsync(async () =>
-                    {
-                        await DisplayAlert("Lecteur externe",
-                            "Aucun lecteur video externe trouve. Installez VLC ou MX Player depuis le Play Store.",
-                            "OK");
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[LiveTvView] External player error: {ex}");
-                await MainThread.InvokeOnMainThreadAsync(async () =>
-                {
-                    await DisplayAlert("Erreur", $"Impossible d'ouvrir le lecteur externe: {ex.Message}", "OK");
-                });
-            }
-#endif
-        }
-
-        private void OnChannelSelected(object? sender, SelectionChangedEventArgs e)
-        {
-            try
-            {
-                if (e.CurrentSelection.Count == 0) return;
-                var channel = e.CurrentSelection[0] as Channel;
-                if (channel == null) return;
-
-                if (_vm != null)
-                {
-                    if (!_videoViewReady)
-                    {
-                        _ = PlayChannelSafeAsync(channel);
-                    }
-                    else
-                    {
-                        try
-                        {
-                            _vm.SelectedChannel = channel;
-                            UpdatePlayPauseButton();
-                        }
-                        catch (Exception playEx)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"[LiveTvView] Play error, trying external: {playEx}");
-                            _ = OpenInExternalPlayerAsync(channel.Url, channel.Name);
-                        }
-                    }
-                }
-
-                if (sender is CollectionView cv)
-                    cv.SelectedItem = null;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[LiveTvView] OnChannelSelected error: {ex}");
+                LoadingIndicator.IsRunning = false;
             }
         }
 
         private void BuildCategoryButtons()
         {
-            if (_vm == null) return;
-            _categoriesBuilt = true;
+            CategoriesBar.Children.Clear();
+            foreach (var cat in _categories)
+            {
+                var btn = new Button
+                {
+                    Text = CleanCategoryName(cat.CategoryName),
+                    BackgroundColor = Color.FromArgb("#252540"),
+                    TextColor = Color.FromArgb("#A0A0B8"),
+                    CornerRadius = 20,
+                    HeightRequest = 36,
+                    FontSize = 12,
+                    Padding = new Thickness(16, 0),
+                    FontAttributes = FontAttributes.Bold,
+                    ClassId = cat.CategoryId
+                };
+                btn.Clicked += OnCategoryClicked;
+                CategoriesBar.Children.Add(btn);
+            }
+        }
 
+        private async void OnCategoryClicked(object? sender, EventArgs e)
+        {
+            if (sender is Button btn)
+            {
+                var cat = _categories.FirstOrDefault(c => c.CategoryId == btn.ClassId);
+                if (cat != null)
+                    await LoadChannelsAsync(cat.CategoryId, cat.CategoryName);
+            }
+        }
+
+        private void UpdateCategoryHighlight(string activeCatId)
+        {
+            foreach (var child in CategoriesBar.Children)
+            {
+                if (child is Button btn)
+                {
+                    bool isActive = btn.ClassId == activeCatId;
+                    btn.BackgroundColor = isActive ? Color.FromArgb("#E50914") : Color.FromArgb("#252540");
+                    btn.TextColor = isActive ? Colors.White : Color.FromArgb("#A0A0B8");
+                }
+            }
+        }
+
+        // ==================== CHANNELS ====================
+
+        private async Task LoadChannelsAsync(string categoryId, string categoryName)
+        {
             try
             {
-                CategoriesBar.Children.Clear();
+                LoadingIndicator.IsRunning = true;
+                ErrorLabel.IsVisible = false;
+                UpdateCategoryHighlight(categoryId);
 
-                // Bouton Favoris
-                var favBtn = CreateCategoryButton("Favoris", "favorites",
-                    _vm.SelectedCategoryId == "favorites");
-                CategoriesBar.Children.Add(favBtn);
+                var source = GetSource();
+                if (source == null) return;
 
-                // Boutons de categories
-                foreach (var cat in _vm.LiveCategories)
-                {
-                    string displayName = CleanCategoryName(cat.CategoryName);
-                    if (string.IsNullOrWhiteSpace(displayName)) continue;
-
-                    bool isSelected = cat.CategoryId == _vm.SelectedCategoryId;
-                    var btn = CreateCategoryButton(displayName, cat.CategoryId, isSelected);
-                    CategoriesBar.Children.Add(btn);
-                }
+                _allChannels = await _xtreamService.GetLiveStreamsByCategoryAsync(source, categoryId);
+                ChannelsList.ItemsSource = _allChannels.Take(300).ToList();
+                StatusLabel.Text = $"{_allChannels.Count} chaines dans {CleanCategoryName(categoryName)}";
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[LiveTvView] BuildCategoryButtons error: {ex}");
+                ErrorLabel.Text = $"Erreur: {ex.Message}";
+                ErrorLabel.IsVisible = true;
+            }
+            finally
+            {
+                LoadingIndicator.IsRunning = false;
             }
         }
 
-        private Button CreateCategoryButton(string text, string categoryId, bool isSelected)
+        // ==================== SEARCH ====================
+
+        private void OnSearchTextChanged(object? sender, TextChangedEventArgs e)
         {
-            var btn = new Button
+            _searchCts?.Cancel();
+            _searchCts = new CancellationTokenSource();
+            var token = _searchCts.Token;
+
+            Task.Delay(300, token).ContinueWith(_ =>
             {
-                Text = text,
-                BackgroundColor = isSelected ? Color.FromArgb("#E50914") : Color.FromArgb("#1F1F1F"),
-                TextColor = Colors.White,
-                FontSize = 11,
-                CornerRadius = 16,
-                HeightRequest = 32,
-                Padding = new Thickness(12, 0),
-                BorderColor = isSelected ? Color.FromArgb("#E50914") : Color.FromArgb("#333333"),
-                BorderWidth = 1
-            };
-            btn.Clicked += (s, e) =>
-            {
-                try
+                if (!token.IsCancellationRequested)
                 {
-                    if (_vm != null)
+                    MainThread.BeginInvokeOnMainThread(() =>
                     {
-                        _vm.SelectedCategoryId = categoryId;
-                        BuildCategoryButtons();
-                    }
+                        var query = SearchEntry.Text?.Trim() ?? "";
+                        if (string.IsNullOrEmpty(query))
+                            ChannelsList.ItemsSource = _allChannels.Take(300).ToList();
+                        else
+                            ChannelsList.ItemsSource = _allChannels
+                                .Where(c => c.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
+                                .Take(300).ToList();
+                    });
                 }
-                catch { }
-            };
-            return btn;
+            }, TaskContinuationOptions.OnlyOnRanToCompletion);
         }
 
-        private string CleanCategoryName(string name)
-        {
-            name = name.Replace("|FR|", "").Replace("|CH|", "").Replace("|MULTI|", "").Trim();
-            if (name.StartsWith("*")) name = name.TrimStart('*').Trim();
-            while (name.Length > 0 && !char.IsLetterOrDigit(name[0]) && name[0] != '(')
-                name = name.Substring(1).Trim();
-            return name;
-        }
+        // ==================== PLAYBACK ====================
 
-        private void UpdatePlayPauseButton()
+        private void OnChannelSelected(object? sender, SelectionChangedEventArgs e)
         {
-            try
+            if (e.CurrentSelection.FirstOrDefault() is Channel channel)
             {
-                if (_vm != null)
-                    PlayPauseBtn.Text = _vm.IsPlaying ? "||" : ">";
+                PlayChannel(channel);
+                ChannelsList.SelectedItem = null;
             }
-            catch { }
         }
 
-        private async void OnSubtitleClicked(object? sender, EventArgs e)
+        public void PlayChannel(Channel channel)
         {
             try
             {
-                if (_vm == null || _vm.Subtitles.Count == 0)
-                {
-                    await DisplayAlert("Sous-titres", "Aucun sous-titre disponible pour cette chaine.", "OK");
-                    return;
-                }
+                _currentStreamUrl = channel.Url;
+                NowPlayingLabel.Text = channel.Name;
+                PlayerSection.IsVisible = true;
+                PlayerLoading.IsRunning = true;
+                ErrorLabel.IsVisible = false;
 
-                string[] names = new string[_vm.Subtitles.Count];
-                for (int i = 0; i < _vm.Subtitles.Count; i++)
-                    names[i] = _vm.Subtitles[i].Name;
-
-                string? result = await DisplayActionSheet("Choisir les sous-titres", "Annuler", "Desactiver", names);
-                if (result == null || result == "Annuler") return;
-
-                if (result == "Desactiver")
-                {
-                    _vm.MediaPlayer?.SetSpu(-1);
-                    return;
-                }
-
-                foreach (var sub in _vm.Subtitles)
-                {
-                    if (sub.Name == result)
-                    {
-                        _vm.SelectedSubtitle = sub;
-                        break;
-                    }
-                }
+                Player.Stop();
+                Player.Source = Microsoft.Maui.Controls.MediaSource.FromUri(_currentStreamUrl);
+                BtnPlayPause.Text = "⏸";
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[LiveTvView] OnSubtitleClicked error: {ex}");
+                ErrorLabel.Text = $"Erreur: {ex.Message}";
+                ErrorLabel.IsVisible = true;
+                PlayerLoading.IsRunning = false;
             }
         }
 
-        private void OnFullscreenClicked(object? sender, EventArgs e)
+        // ==================== PLAYER CONTROLS ====================
+
+        private void OnPlayPauseClicked(object? sender, EventArgs e)
         {
             try
             {
-                _isFullscreen = !_isFullscreen;
-
-                if (_isFullscreen)
+                if (Player.CurrentState == CommunityToolkit.Maui.Core.Primitives.MediaElementState.Playing)
                 {
-                    Shell.SetTabBarIsVisible(this, false);
-                    Shell.SetNavBarIsVisible(this, false);
-                    PlayerRow.Height = new GridLength(1, GridUnitType.Star);
-                    SearchRow.Height = new GridLength(0);
+                    Player.Pause();
+                    BtnPlayPause.Text = "▶";
                 }
                 else
                 {
-                    Shell.SetTabBarIsVisible(this, true);
-                    Shell.SetNavBarIsVisible(this, true);
-                    PlayerRow.Height = new GridLength(220);
-                    SearchRow.Height = GridLength.Auto;
+                    Player.Play();
+                    BtnPlayPause.Text = "⏸";
                 }
             }
             catch { }
         }
 
-        private void OnPipClicked(object? sender, EventArgs e)
+        private void OnVolumeClicked(object? sender, EventArgs e)
         {
-#if ANDROID
+            _isMuted = !_isMuted;
+            Player.ShouldMute = _isMuted;
+        }
+
+        private async void OnExternalPlayerClicked(object? sender, EventArgs e)
+        {
+            if (string.IsNullOrEmpty(_currentStreamUrl)) return;
+            await OpenInExternalPlayerAsync(_currentStreamUrl);
+        }
+
+        private void OnClosePlayerClicked(object? sender, EventArgs e)
+        {
             try
             {
-                if (OperatingSystem.IsAndroidVersionAtLeast(26))
+                Player.Stop();
+                Player.Source = null;
+                PlayerSection.IsVisible = false;
+                NowPlayingLabel.Text = "";
+                PlayerLoading.IsRunning = false;
+            }
+            catch { }
+        }
+
+        // ==================== EXTERNAL PLAYER ====================
+
+        private async Task OpenInExternalPlayerAsync(string url)
+        {
+            try
+            {
+#if ANDROID
+                var intent = new Android.Content.Intent(Android.Content.Intent.ActionView);
+                intent.SetDataAndType(Android.Net.Uri.Parse(url), "video/*");
+                intent.AddFlags(Android.Content.ActivityFlags.NewTask);
+
+                var context = Android.App.Application.Context;
+                if (intent.ResolveActivity(context.PackageManager!) != null)
                 {
-                    var activity = Microsoft.Maui.ApplicationModel.Platform.CurrentActivity;
-                    if (activity != null)
-                    {
-                        var builder = new PictureInPictureParams.Builder();
-                        builder.SetAspectRatio(new Rational(16, 9));
-                        var pipParams = builder.Build();
-                        if (pipParams != null)
-                            activity.EnterPictureInPictureMode(pipParams);
-                    }
+                    context.StartActivity(intent);
                 }
+                else
+                {
+                    await DisplayAlert("Lecteur externe",
+                        "Aucun lecteur video externe trouve. Installez VLC ou MX Player.",
+                        "OK");
+                }
+#endif
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[LiveTvView] OnPipClicked error: {ex}");
+                await DisplayAlert("Erreur", $"Impossible d'ouvrir le lecteur externe: {ex.Message}", "OK");
             }
-#endif
         }
 
-        private void OnBrightnessPanUpdated(object? sender, PanUpdatedEventArgs e)
+        // ==================== HELPERS ====================
+
+        private MediaSource? GetSource()
         {
             try
             {
-                switch (e.StatusType)
-                {
-                    case GestureStatus.Started:
-                        _startBrightness = _currentBrightness;
-                        BrightnessIndicator.IsVisible = true;
-                        break;
-
-                    case GestureStatus.Running:
-                        double delta = -e.TotalY / 200.0;
-                        _currentBrightness = Math.Clamp(_startBrightness + delta, 0, 1);
-                        BrightnessBar.Progress = _currentBrightness;
-                        break;
-
-                    case GestureStatus.Completed:
-                    case GestureStatus.Canceled:
-                        _ = Task.Run(async () =>
-                        {
-                            await Task.Delay(1000);
-                            MainThread.BeginInvokeOnMainThread(() =>
-                            {
-                                try { BrightnessIndicator.IsVisible = false; }
-                                catch { }
-                            });
-                        });
-                        break;
-                }
+                var sources = _storageService.LoadSources();
+                return sources.FirstOrDefault(s => s.Type == SourceType.Xtream);
             }
-            catch { }
+            catch { return null; }
+        }
+
+        private static string CleanCategoryName(string name)
+        {
+            return name.Replace("|", "").Replace("  ", " ").Trim();
+        }
+
+        protected override void OnDisappearing()
+        {
+            base.OnDisappearing();
         }
     }
 }

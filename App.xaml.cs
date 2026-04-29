@@ -10,7 +10,6 @@ namespace NovaStreamMobile
         {
             InitializeComponent();
 
-            // Handler global pour les exceptions non gerees dans les taches async
             AppDomain.CurrentDomain.UnhandledException += (s, e) =>
             {
                 var ex = e.ExceptionObject as Exception;

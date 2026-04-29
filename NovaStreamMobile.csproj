@@ -13,25 +13,25 @@
 		<ApplicationTitle>NovaStream</ApplicationTitle>
 
 		<!-- App Identifier -->
-		<ApplicationId>com.companyname.novastreammobile</ApplicationId>
+		<ApplicationId>com.novastream.mobile</ApplicationId>
 		<ApplicationIdGuid>73829401-2837-4920-A1B2-C3D4E5F6A7B8</ApplicationIdGuid>
 
 		<!-- Versions -->
-		<ApplicationDisplayVersion>3.0</ApplicationDisplayVersion>
-		<ApplicationVersion>3</ApplicationVersion>
+		<ApplicationDisplayVersion>4.0</ApplicationDisplayVersion>
+		<ApplicationVersion>4</ApplicationVersion>
 
 		<UseMaui>true</UseMaui>
 		<SkipValidateMauiImplicitPackageReferences>true</SkipValidateMauiImplicitPackageReferences>
 
 		<!-- Suppress non-critical warnings -->
-		<NoWarn>$(NoWarn);CS0618;CA1422;CA1416;XC0022</NoWarn>
+		<NoWarn>$(NoWarn);CS0618;CA1422;CA1416;XC0022;XC0045</NoWarn>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Maui.Controls" Version="9.0.120" />
 		<PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="9.0.120" />
-		<PackageReference Include="LibVLCSharp" Version="3.9.1" />
-		<PackageReference Include="VideoLAN.LibVLC.Android" Version="3.6.0" />
+		<PackageReference Include="CommunityToolkit.Maui" Version="9.1.1" />
+		<PackageReference Include="CommunityToolkit.Maui.MediaElement" Version="4.2.1" />
 	</ItemGroup>
 
 	<ItemGroup Condition="'$(TargetFramework)' == 'net9.0-android'">
@@ -40,10 +40,10 @@
 
 	<ItemGroup>
 		<!-- Splash Screen -->
-		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#0F0F0F" BaseSize="128,128" />
+		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#0A0A0A" BaseSize="128,128" />
 
 		<!-- App Icon -->
-		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#0F0F0F" />
+		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#0A0A0A" />
 
 		<!-- Images -->
 		<MauiImage Include="Resources\Images\*" />

@@ -5,18 +5,18 @@
        xmlns:views="clr-namespace:NovaStreamMobile.Views"
        Shell.FlyoutBehavior="Disabled"
        Shell.NavBarIsVisible="False"
-       Shell.TabBarBackgroundColor="#141414"
+       Shell.TabBarBackgroundColor="#0D0D1A"
        Shell.TabBarForegroundColor="#E50914"
-       Shell.TabBarUnselectedColor="#808080"
+       Shell.TabBarUnselectedColor="#606080"
        Shell.TabBarTitleColor="#E50914"
-       BackgroundColor="#0A0A0A"
+       BackgroundColor="#08081A"
        ForegroundColor="White">
 
     <TabBar>
         <Tab Title="Accueil">
             <ShellContent ContentTemplate="{DataTemplate views:HomeView}" />
         </Tab>
-        <Tab Title="TV Direct">
+        <Tab Title="TV">
             <ShellContent ContentTemplate="{DataTemplate views:LiveTvView}" />
         </Tab>
         <Tab Title="Films">

@@ -9,33 +9,47 @@
             <c:ProgressConverter x:Key="ProgressConverter" />
             <c:BoolInvertConverter x:Key="BoolInvertConverter" />
 
-            <!-- Netflix-inspired Color Palette -->
+            <!-- ============ MODERN COLOR SYSTEM ============ -->
             <Color x:Key="Primary">#E50914</Color>
             <Color x:Key="PrimaryDark">#B20710</Color>
-            <Color x:Key="Secondary">#141414</Color>
-            <Color x:Key="Surface">#1F1F1F</Color>
-            <Color x:Key="SurfaceLight">#2A2A2A</Color>
-            <Color x:Key="Background">#0A0A0A</Color>
-            <Color x:Key="Accent">#46D369</Color>
-            <Color x:Key="AccentBlue">#2196F3</Color>
+            <Color x:Key="PrimaryLight">#FF3D47</Color>
+            <Color x:Key="Secondary">#121212</Color>
+            <Color x:Key="Surface">#1A1A2E</Color>
+            <Color x:Key="SurfaceLight">#252540</Color>
+            <Color x:Key="SurfaceCard">#1E1E32</Color>
+            <Color x:Key="Background">#0A0A14</Color>
+            <Color x:Key="Accent">#00D4AA</Color>
+            <Color x:Key="AccentBlue">#4A9EFF</Color>
+            <Color x:Key="AccentPurple">#8B5CF6</Color>
+            <Color x:Key="AccentGold">#F59E0B</Color>
             <Color x:Key="TextPrimary">#FFFFFF</Color>
-            <Color x:Key="TextSecondary">#B3B3B3</Color>
-            <Color x:Key="TextMuted">#808080</Color>
+            <Color x:Key="TextSecondary">#A0A0B8</Color>
+            <Color x:Key="TextMuted">#606078</Color>
             <Color x:Key="FavoriteGold">#FFD700</Color>
-            <Color x:Key="Danger">#E50914</Color>
-            <Color x:Key="CardBorder">#333333</Color>
+            <Color x:Key="Danger">#EF4444</Color>
+            <Color x:Key="Success">#10B981</Color>
+            <Color x:Key="CardBorder">#2A2A44</Color>
+            <Color x:Key="Gradient1">#E50914</Color>
+            <Color x:Key="Gradient2">#8B5CF6</Color>
 
-            <!-- Global Styles -->
+            <!-- ============ GLOBAL STYLES ============ -->
             <Style TargetType="Label">
                 <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
                 <Setter Property="FontFamily" Value="OpenSansRegular" />
             </Style>
 
-            <Style x:Key="TitleLabel" TargetType="Label">
+            <Style x:Key="PageTitle" TargetType="Label">
+                <Setter Property="FontSize" Value="26" />
+                <Setter Property="FontAttributes" Value="Bold" />
+                <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+                <Setter Property="FontFamily" Value="OpenSansSemibold" />
+            </Style>
+
+            <Style x:Key="SectionTitle" TargetType="Label">
                 <Setter Property="FontSize" Value="18" />
                 <Setter Property="FontAttributes" Value="Bold" />
                 <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
-                <Setter Property="Margin" Value="0,8" />
+                <Setter Property="Margin" Value="0,16,0,8" />
             </Style>
 
             <Style x:Key="SubtitleLabel" TargetType="Label">
@@ -43,32 +57,94 @@
                 <Setter Property="TextColor" Value="{StaticResource TextSecondary}" />
             </Style>
 
+            <Style x:Key="MutedLabel" TargetType="Label">
+                <Setter Property="FontSize" Value="11" />
+                <Setter Property="TextColor" Value="{StaticResource TextMuted}" />
+            </Style>
+
+            <Style x:Key="BadgeLabel" TargetType="Label">
+                <Setter Property="FontSize" Value="10" />
+                <Setter Property="FontAttributes" Value="Bold" />
+                <Setter Property="TextColor" Value="White" />
+                <Setter Property="Padding" Value="6,2" />
+            </Style>
+
             <Style x:Key="CardFrame" TargetType="Frame">
-                <Setter Property="BackgroundColor" Value="{StaticResource Surface}" />
+                <Setter Property="BackgroundColor" Value="{StaticResource SurfaceCard}" />
+                <Setter Property="BorderColor" Value="{StaticResource CardBorder}" />
+                <Setter Property="CornerRadius" Value="16" />
+                <Setter Property="HasShadow" Value="False" />
+                <Setter Property="Padding" Value="16" />
+            </Style>
+
+            <Style x:Key="CardFrameCompact" TargetType="Frame">
+                <Setter Property="BackgroundColor" Value="{StaticResource SurfaceCard}" />
                 <Setter Property="BorderColor" Value="{StaticResource CardBorder}" />
                 <Setter Property="CornerRadius" Value="12" />
                 <Setter Property="HasShadow" Value="False" />
-                <Setter Property="Padding" Value="14" />
+                <Setter Property="Padding" Value="10" />
             </Style>
 
             <Style TargetType="Entry">
                 <Setter Property="TextColor" Value="White" />
                 <Setter Property="PlaceholderColor" Value="{StaticResource TextMuted}" />
                 <Setter Property="BackgroundColor" Value="{StaticResource SurfaceLight}" />
+                <Setter Property="FontSize" Value="14" />
             </Style>
 
             <Style TargetType="Button">
-                <Setter Property="CornerRadius" Value="8" />
+                <Setter Property="CornerRadius" Value="12" />
                 <Setter Property="FontAttributes" Value="Bold" />
                 <Setter Property="HeightRequest" Value="48" />
+                <Setter Property="FontSize" Value="14" />
             </Style>
 
             <Style x:Key="PrimaryButton" TargetType="Button">
                 <Setter Property="BackgroundColor" Value="{StaticResource Primary}" />
                 <Setter Property="TextColor" Value="White" />
-                <Setter Property="CornerRadius" Value="8" />
+                <Setter Property="CornerRadius" Value="12" />
                 <Setter Property="FontAttributes" Value="Bold" />
                 <Setter Property="HeightRequest" Value="48" />
+                <Setter Property="FontSize" Value="14" />
+            </Style>
+
+            <Style x:Key="SecondaryButton" TargetType="Button">
+                <Setter Property="BackgroundColor" Value="{StaticResource SurfaceLight}" />
+                <Setter Property="TextColor" Value="White" />
+                <Setter Property="CornerRadius" Value="12" />
+                <Setter Property="FontAttributes" Value="Bold" />
+                <Setter Property="HeightRequest" Value="44" />
+                <Setter Property="FontSize" Value="13" />
+            </Style>
+
+            <Style x:Key="CategoryChip" TargetType="Button">
+                <Setter Property="BackgroundColor" Value="{StaticResource SurfaceLight}" />
+                <Setter Property="TextColor" Value="{StaticResource TextSecondary}" />
+                <Setter Property="CornerRadius" Value="20" />
+                <Setter Property="HeightRequest" Value="36" />
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="Padding" Value="16,0" />
+                <Setter Property="FontAttributes" Value="Bold" />
+            </Style>
+
+            <Style x:Key="CategoryChipActive" TargetType="Button">
+                <Setter Property="BackgroundColor" Value="{StaticResource Primary}" />
+                <Setter Property="TextColor" Value="White" />
+                <Setter Property="CornerRadius" Value="20" />
+                <Setter Property="HeightRequest" Value="36" />
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="Padding" Value="16,0" />
+                <Setter Property="FontAttributes" Value="Bold" />
+            </Style>
+
+            <Style x:Key="PlayerControlButton" TargetType="Button">
+                <Setter Property="BackgroundColor" Value="#80000000" />
+                <Setter Property="TextColor" Value="White" />
+                <Setter Property="CornerRadius" Value="24" />
+                <Setter Property="WidthRequest" Value="48" />
+                <Setter Property="HeightRequest" Value="48" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="FontSize" Value="18" />
             </Style>
 
         </ResourceDictionary>
