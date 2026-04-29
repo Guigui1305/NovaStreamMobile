@@ -470,34 +470,81 @@ namespace NovaStreamMobile.ViewModels
 
         private void PlayChannel(Channel channel)
         {
-            if (MediaPlayer == null || LibVLC == null) return;
+            if (MediaPlayer == null || LibVLC == null)
+            {
+                System.Diagnostics.Debug.WriteLine("[LiveTV] PlayChannel: MediaPlayer or LibVLC is null");
+                return;
+            }
+
+            // Valider l'URL avant de tenter la lecture
+            if (string.IsNullOrWhiteSpace(channel?.Url))
+            {
+                ErrorMessage = "URL de lecture invalide.";
+                OnPropertyChanged(nameof(HasError));
+                return;
+            }
 
             try
             {
                 HasChannel = true;
-                CurrentChannelName = channel.Name;
+                CurrentChannelName = channel.Name ?? "";
                 ErrorMessage = "";
                 OnPropertyChanged(nameof(HasError));
 
-                if (_historyUrls.Contains(channel.Url)) _historyUrls.Remove(channel.Url);
-                _historyUrls.Insert(0, channel.Url);
-                if (_historyUrls.Count > 50) _historyUrls = _historyUrls.Take(50).ToList();
-                _storageService.SaveHistory(_historyUrls);
+                // Sauvegarder dans l'historique
+                try
+                {
+                    if (_historyUrls.Contains(channel.Url)) _historyUrls.Remove(channel.Url);
+                    _historyUrls.Insert(0, channel.Url);
+                    if (_historyUrls.Count > 50) _historyUrls = _historyUrls.Take(50).ToList();
+                    _storageService.SaveHistory(_historyUrls);
+                }
+                catch (Exception histEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[LiveTV] History save error: {histEx.Message}");
+                }
 
                 Subtitles.Clear();
 
-                // IMPORTANT: Ne PAS utiliser 'using' ici !
-                // Le Media doit rester vivant pendant toute la lecture.
-                // On garde une reference et on dispose l'ancien avant d'en creer un nouveau.
-                _currentMedia?.Dispose();
-                _currentMedia = new Media(LibVLC, new Uri(channel.Url));
-                _currentMedia.AddOption(":network-caching=3000");
-                MediaPlayer.Play(_currentMedia);
+                // Arreter la lecture en cours avant de creer un nouveau media
+                try
+                {
+                    if (MediaPlayer.IsPlaying)
+                        MediaPlayer.Stop();
+                }
+                catch { }
 
+                // Disposer l'ancien media
+                try { _currentMedia?.Dispose(); } catch { }
+                _currentMedia = null;
+
+                // Creer le nouveau media avec validation URI
+                Uri mediaUri;
+                try
+                {
+                    mediaUri = new Uri(channel.Url);
+                }
+                catch (UriFormatException)
+                {
+                    // Essayer comme chemin brut
+                    _currentMedia = new Media(LibVLC, channel.Url, FromType.FromLocation);
+                    _currentMedia.AddOption(":network-caching=3000");
+                    MediaPlayer.Play(_currentMedia);
+                    return;
+                }
+
+                _currentMedia = new Media(LibVLC, mediaUri);
+                _currentMedia.AddOption(":network-caching=3000");
+                
+                // Lancer la lecture
+                MediaPlayer.Play(_currentMedia);
+                System.Diagnostics.Debug.WriteLine($"[LiveTV] Playing: {channel.Name} - {channel.Url}");
+
+                // Resume position si disponible
                 if (Preferences.Get("resume_enabled", true) && _resumePositions.ContainsKey(channel.Url))
                 {
                     long pos = _resumePositions[channel.Url];
-                    Task.Delay(1500).ContinueWith(_ =>
+                    Task.Delay(2000).ContinueWith(_ =>
                     {
                         MainThread.BeginInvokeOnMainThread(() =>
                         {

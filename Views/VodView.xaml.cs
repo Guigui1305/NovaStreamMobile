@@ -407,17 +407,24 @@ namespace NovaStreamMobile.Views
 
         /// <summary>
         /// Navigation securisee vers l'onglet TV Direct pour lancer la lecture.
-        /// Attend que la page soit prete avant d'assigner le channel.
+        /// Utilise PlayChannelSafeAsync pour attendre que la VideoView soit prete.
         /// </summary>
         private async Task PlayOnLiveTvAsync(string name, string url, string imageUrl)
         {
             try
             {
+                // Valider l'URL avant de naviguer
+                if (string.IsNullOrWhiteSpace(url))
+                {
+                    await DisplayAlert("Erreur", "URL de lecture invalide.", "OK");
+                    return;
+                }
+
                 var channel = new Channel
                 {
                     Name = name,
                     Url = url,
-                    LogoUrl = imageUrl
+                    LogoUrl = imageUrl ?? ""
                 };
 
                 // Naviguer vers l'onglet TV Direct
@@ -430,24 +437,25 @@ namespace NovaStreamMobile.Views
 
                         // Attendre que la navigation soit complete et la page soit prete
                         LiveTvView? liveTv = null;
-                        for (int i = 0; i < 20; i++) // Max 2 secondes d'attente
+                        for (int i = 0; i < 30; i++) // Max 3 secondes d'attente
                         {
                             await Task.Delay(100);
-                            liveTv = Shell.Current.CurrentPage as LiveTvView;
-                            if (liveTv != null) break;
+                            try
+                            {
+                                liveTv = Shell.Current.CurrentPage as LiveTvView;
+                                if (liveTv != null) break;
+                            }
+                            catch { }
                         }
 
                         if (liveTv != null)
                         {
-                            var vm = liveTv.BindingContext as NovaStreamMobile.ViewModels.LiveTvViewModel;
-                            if (vm != null)
-                            {
-                                vm.SelectedChannel = channel;
-                                return;
-                            }
+                            // Utiliser PlayChannelSafeAsync qui attend la VideoView
+                            await liveTv.PlayChannelSafeAsync(channel);
+                            return;
                         }
 
-                        // Fallback: si on n'a pas pu trouver la page, ouvrir dans le navigateur externe
+                        // Fallback
                         await DisplayAlert("Info", "Navigation vers le lecteur en cours. Selectionnez l'onglet TV Direct.", "OK");
                     }
                 }

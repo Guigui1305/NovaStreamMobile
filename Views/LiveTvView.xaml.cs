@@ -21,7 +21,7 @@ namespace NovaStreamMobile.Views
         private double _startBrightness;
         private LiveTvViewModel? _vm;
         private bool _categoriesBuilt = false;
-        private bool _videoAttached = false;
+        private bool _videoViewReady = false;
 
         public LiveTvView()
         {
@@ -34,10 +34,11 @@ namespace NovaStreamMobile.Views
             try
             {
                 _vm = BindingContext as LiveTvViewModel;
-                if (!_videoAttached)
+                
+                // Attacher la VideoView de maniere asynchrone mais trackee
+                if (!_videoViewReady)
                 {
-                    AttachVideoView();
-                    _videoAttached = true;
+                    _ = AttachVideoViewAsync();
                 }
 
                 if (_vm != null && !_categoriesBuilt)
@@ -57,6 +58,48 @@ namespace NovaStreamMobile.Views
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[LiveTvView] OnAppearing error: {ex}");
+            }
+        }
+
+        /// <summary>
+        /// Methode publique pour lancer la lecture de maniere securisee.
+        /// Attend que la VideoView soit prete avant de lancer la lecture.
+        /// Appelee depuis HomeView et VodView apres navigation.
+        /// </summary>
+        public async Task PlayChannelSafeAsync(Channel channel)
+        {
+            try
+            {
+                _vm = BindingContext as LiveTvViewModel;
+                if (_vm == null) return;
+
+                // Attendre que la VideoView soit prete (max 3 secondes)
+                for (int i = 0; i < 30; i++)
+                {
+                    if (_videoViewReady) break;
+                    await Task.Delay(100);
+                }
+
+                // Delai supplementaire pour s'assurer que la surface Android est initialisee
+                await Task.Delay(500);
+
+                // Lancer la lecture sur le MainThread
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    try
+                    {
+                        _vm.SelectedChannel = channel;
+                        UpdatePlayPauseButton();
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[LiveTvView] PlayChannelSafe error: {ex}");
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[LiveTvView] PlayChannelSafeAsync error: {ex}");
             }
         }
 
@@ -130,7 +173,7 @@ namespace NovaStreamMobile.Views
             return name;
         }
 
-        private void AttachVideoView()
+        private async Task AttachVideoViewAsync()
         {
             if (_vm?.MediaPlayer == null) return;
 
@@ -148,6 +191,9 @@ namespace NovaStreamMobile.Views
 
                 VideoContainer.Content = nativeView;
 
+                // Attendre un cycle de layout pour que le handler soit pret
+                await Task.Delay(200);
+
                 MainThread.BeginInvokeOnMainThread(() =>
                 {
                     try
@@ -161,11 +207,21 @@ namespace NovaStreamMobile.Views
                             container.AddView(videoView, new Android.Views.ViewGroup.LayoutParams(
                                 Android.Views.ViewGroup.LayoutParams.MatchParent,
                                 Android.Views.ViewGroup.LayoutParams.MatchParent));
+                            
+                            // Marquer la VideoView comme prete
+                            _videoViewReady = true;
+                            System.Diagnostics.Debug.WriteLine("[LiveTvView] VideoView attached successfully");
+                        }
+                        else
+                        {
+                            // Le handler n'est pas pret, reessayer apres un delai
+                            _ = RetryAttachVideoViewAsync(videoView);
                         }
                     }
                     catch (Exception ex)
                     {
                         System.Diagnostics.Debug.WriteLine($"[LiveTvView] AttachVideoView inner error: {ex}");
+                        _ = RetryAttachVideoViewAsync(videoView);
                     }
                 });
             }
@@ -173,8 +229,56 @@ namespace NovaStreamMobile.Views
             {
                 System.Diagnostics.Debug.WriteLine($"[LiveTvView] AttachVideoView error: {ex}");
             }
+#else
+            _videoViewReady = true;
 #endif
         }
+
+#if ANDROID
+        private async Task RetryAttachVideoViewAsync(LibVLCSharp.Platforms.Android.VideoView videoView)
+        {
+            // Reessayer 5 fois avec un delai croissant
+            for (int attempt = 0; attempt < 5; attempt++)
+            {
+                await Task.Delay(300 * (attempt + 1));
+                
+                try
+                {
+                    var handler = VideoContainer.Handler;
+                    if (handler?.PlatformView is Android.Views.ViewGroup container)
+                    {
+                        MainThread.BeginInvokeOnMainThread(() =>
+                        {
+                            try
+                            {
+                                container.RemoveAllViews();
+                                if (videoView.Parent is Android.Views.ViewGroup oldParent)
+                                    oldParent.RemoveView(videoView);
+                                container.AddView(videoView, new Android.Views.ViewGroup.LayoutParams(
+                                    Android.Views.ViewGroup.LayoutParams.MatchParent,
+                                    Android.Views.ViewGroup.LayoutParams.MatchParent));
+                                
+                                _videoViewReady = true;
+                                System.Diagnostics.Debug.WriteLine($"[LiveTvView] VideoView attached on retry {attempt + 1}");
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[LiveTvView] Retry attach error: {ex}");
+                            }
+                        });
+                        
+                        if (_videoViewReady) return;
+                    }
+                }
+                catch { }
+            }
+            
+            // Meme si on n'a pas pu attacher, marquer comme "pret" pour eviter un blocage infini
+            // La lecture fonctionnera en audio seulement
+            _videoViewReady = true;
+            System.Diagnostics.Debug.WriteLine("[LiveTvView] VideoView attachment failed after retries, continuing anyway");
+        }
+#endif
 
         private void OnChannelSelected(object? sender, SelectionChangedEventArgs e)
         {
@@ -186,8 +290,16 @@ namespace NovaStreamMobile.Views
 
                 if (_vm != null)
                 {
-                    _vm.SelectedChannel = channel;
-                    UpdatePlayPauseButton();
+                    // Si la VideoView n'est pas prete, utiliser PlayChannelSafe
+                    if (!_videoViewReady)
+                    {
+                        _ = PlayChannelSafeAsync(channel);
+                    }
+                    else
+                    {
+                        _vm.SelectedChannel = channel;
+                        UpdatePlayPauseButton();
+                    }
                 }
 
                 if (sender is CollectionView cv)
