@@ -216,7 +216,7 @@
                 <HorizontalStackLayout Spacing="10">
                     <Frame BackgroundColor="{StaticResource Primary}" CornerRadius="6" 
                            Padding="6,3" BorderColor="Transparent" HasShadow="False">
-                        <Label Text="v3.0" FontSize="10" TextColor="White" FontAttributes="Bold" />
+                        <Label Text="v3.4" FontSize="10" TextColor="White" FontAttributes="Bold" />
                     </Frame>
                     <Label Text="NovaStream - Lecteur IPTV Premium" FontSize="12" 
                            TextColor="{StaticResource TextMuted}" VerticalOptions="Center" />

@@ -8,6 +8,9 @@ namespace NovaStreamMobile.Views
 {
     public partial class HomeView : ContentPage
     {
+        // Index des onglets dans AppShell:
+        // 0 = Accueil, 1 = TV Direct, 2 = Films, 3 = Series, 4 = Sources, 5 = Reglages
+
         public HomeView()
         {
             InitializeComponent();
@@ -15,17 +18,17 @@ namespace NovaStreamMobile.Views
 
         private void OnNavigateToSources(object? sender, EventArgs e)
         {
-            NavigateToTab(3);
+            NavigateToTab(4); // Sources
         }
 
         private void OnNavigateToLiveTv(object? sender, EventArgs e)
         {
-            NavigateToTab(1);
+            NavigateToTab(1); // TV Direct
         }
 
         private void OnNavigateToVod(object? sender, EventArgs e)
         {
-            NavigateToTab(2);
+            NavigateToTab(2); // Films
         }
 
         private async void OnChannelTapped(object? sender, TappedEventArgs e)
@@ -35,7 +38,22 @@ namespace NovaStreamMobile.Views
                 var frame = sender as Frame;
                 if (frame?.BindingContext is Channel channel)
                 {
-                    await PlayOnLiveTvAsync(channel.Name, channel.Url, channel.LogoUrl);
+                    // Naviguer vers TV Direct et lancer la lecture
+                    NavigateToTab(1);
+                    await Task.Delay(500);
+
+                    try
+                    {
+                        var liveTv = Shell.Current?.CurrentPage as LiveTvView;
+                        if (liveTv != null)
+                        {
+                            await liveTv.PlayChannelSafeAsync(channel);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[HomeView] PlayChannel error: {ex}");
+                    }
                 }
             }
             catch (Exception ex)
@@ -54,68 +72,17 @@ namespace NovaStreamMobile.Views
                     bool play = await DisplayAlert(movie.Name, "Lancer la lecture ?", "Lire", "Annuler");
                     if (play && !string.IsNullOrEmpty(movie.Url))
                     {
-                        await PlayOnLiveTvAsync(movie.Name, movie.Url, movie.StreamIcon);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                await DisplayAlert("Erreur", $"Impossible de lancer la lecture: {ex.Message}", "OK");
-            }
-        }
+                        // Naviguer vers l'onglet Films au lieu de TV Direct
+                        NavigateToTab(2);
+                        await Task.Delay(500);
 
-        /// <summary>
-        /// Navigation securisee vers l'onglet TV Direct pour lancer la lecture.
-        /// Utilise PlayChannelSafeAsync pour attendre que la VideoView soit prete.
-        /// </summary>
-        private async Task PlayOnLiveTvAsync(string name, string url, string logoUrl)
-        {
-            try
-            {
-                // Valider l'URL avant de naviguer
-                if (string.IsNullOrWhiteSpace(url))
-                {
-                    await DisplayAlert("Erreur", "URL de lecture invalide.", "OK");
-                    return;
-                }
-
-                var channel = new Channel
-                {
-                    Name = name,
-                    Url = url,
-                    LogoUrl = logoUrl ?? ""
-                };
-
-                // Naviguer vers l'onglet TV Direct
-                if (Shell.Current?.Items.Count > 0)
-                {
-                    var tabBar = Shell.Current.Items[0];
-                    if (tabBar.Items.Count > 1)
-                    {
-                        Shell.Current.CurrentItem = tabBar.Items[1];
-
-                        // Attendre que la navigation soit complete et la page soit prete
-                        LiveTvView? liveTv = null;
-                        for (int i = 0; i < 30; i++) // Max 3 secondes d'attente
+                        try
                         {
-                            await Task.Delay(100);
-                            try
-                            {
-                                liveTv = Shell.Current.CurrentPage as LiveTvView;
-                                if (liveTv != null) break;
-                            }
-                            catch { }
+                            var filmsView = Shell.Current?.CurrentPage as FilmsView;
+                            // Le film sera lu directement dans l'onglet Films
+                            // Pour l'instant on navigue juste vers Films
                         }
-
-                        if (liveTv != null)
-                        {
-                            // Utiliser PlayChannelSafeAsync qui attend la VideoView
-                            await liveTv.PlayChannelSafeAsync(channel);
-                            return;
-                        }
-
-                        // Fallback
-                        await DisplayAlert("Info", "Navigation vers le lecteur en cours. Selectionnez l'onglet TV Direct.", "OK");
+                        catch { }
                     }
                 }
             }
@@ -136,7 +103,10 @@ namespace NovaStreamMobile.Views
                         Shell.Current.CurrentItem = tabBar.Items[tabIndex];
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[HomeView] NavigateToTab error: {ex}");
+            }
         }
     }
 }

@@ -19,8 +19,11 @@
         <Tab Title="TV Direct">
             <ShellContent ContentTemplate="{DataTemplate views:LiveTvView}" />
         </Tab>
-        <Tab Title="Films / Series">
-            <ShellContent ContentTemplate="{DataTemplate views:VodView}" />
+        <Tab Title="Films">
+            <ShellContent ContentTemplate="{DataTemplate views:FilmsView}" />
+        </Tab>
+        <Tab Title="Series">
+            <ShellContent ContentTemplate="{DataTemplate views:SeriesView}" />
         </Tab>
         <Tab Title="Sources">
             <ShellContent ContentTemplate="{DataTemplate views:SourcesView}" />
