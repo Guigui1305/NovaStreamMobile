@@ -316,6 +316,30 @@ namespace NovaStreamMobile.Views
             }
         }
 
+        private void OnEpisodeTapped(object? sender, TappedEventArgs e)
+        {
+            try
+            {
+                SeriesEpisode? episode = null;
+                if (sender is Frame frame)
+                    episode = frame.BindingContext as SeriesEpisode;
+                else if (sender is VisualElement ve)
+                    episode = ve.BindingContext as SeriesEpisode;
+
+                if (episode == null || string.IsNullOrEmpty(episode.Url)) return;
+
+                string epName = !string.IsNullOrEmpty(episode.Title)
+                    ? $"E{episode.EpisodeNum:D2} - {episode.Title}"
+                    : $"Episode {episode.EpisodeNum}";
+                PlayEpisode(epName, episode.Url);
+            }
+            catch (Exception ex)
+            {
+                ErrorLabel.Text = $"Erreur: {ex.Message}";
+                ErrorLabel.IsVisible = true;
+            }
+        }
+
         // ==================== LECTEUR VIDEO (MediaElement) ====================
 
         private void PlayEpisode(string name, string url)
