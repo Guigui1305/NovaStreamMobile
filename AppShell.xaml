@@ -13,6 +13,9 @@
        ForegroundColor="White">
 
     <TabBar>
+        <Tab Title="Studio">
+            <ShellContent ContentTemplate="{DataTemplate views:GeneratorView}" />
+        </Tab>
         <Tab Title="Accueil">
             <ShellContent ContentTemplate="{DataTemplate views:HomeView}" />
         </Tab>

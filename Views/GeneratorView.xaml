@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
+             x:Class="NovaStreamMobile.Views.GeneratorView"
+             BackgroundColor="{StaticResource Background}"
+             Title="Creer"
+             Shell.NavBarIsVisible="False">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16,14,16,32" Spacing="14">
+
+            <!-- ============ EN-TETE ============ -->
+            <VerticalStackLayout Spacing="2">
+                <Label Text="Studio" Style="{StaticResource PageTitle}" />
+                <Label Text="Decris ta video, le telephone l'encode en MP4. 100% hors ligne."
+                       Style="{StaticResource SubtitleLabel}" />
+            </VerticalStackLayout>
+
+            <!-- ============ PROMPT ============ -->
+            <Frame Style="{StaticResource CardFrame}">
+                <VerticalStackLayout Spacing="10">
+
+                    <Label Text="Ton prompt" FontSize="13" FontAttributes="Bold"
+                           TextColor="{StaticResource TextSecondary}" />
+
+                    <Border BackgroundColor="{StaticResource SurfaceLight}"
+                            Stroke="{StaticResource CardBorder}"
+                            StrokeThickness="1"
+                            Padding="8,2">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="12" />
+                        </Border.StrokeShape>
+                        <Editor x:Name="PromptEditor"
+                                Placeholder="Ex : coucher de soleil sur l ocean, vagues lentes, 10 secondes"
+                                PlaceholderColor="{StaticResource TextMuted}"
+                                TextColor="White"
+                                BackgroundColor="Transparent"
+                                FontSize="15"
+                                HeightRequest="96"
+                                AutoSize="Disabled"
+                                TextChanged="OnPromptChanged" />
+                    </Border>
+
+                    <Label x:Name="DetectionLabel"
+                           Style="{StaticResource MutedLabel}"
+                           Text="" />
+
+                    <Label Text="Idees" FontSize="12" FontAttributes="Bold"
+                           TextColor="{StaticResource TextSecondary}" Margin="0,4,0,0" />
+
+                    <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+                        <HorizontalStackLayout x:Name="SuggestionsLayout" Spacing="8" />
+                    </ScrollView>
+
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- ============ REGLAGES ============ -->
+            <Frame Style="{StaticResource CardFrame}">
+                <VerticalStackLayout Spacing="12">
+
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Text="Duree" FontSize="13" FontAttributes="Bold"
+                               TextColor="{StaticResource TextSecondary}" VerticalOptions="Center" />
+                        <Label x:Name="DurationLabel" Grid.Column="1" Text="8 s"
+                               FontSize="13" FontAttributes="Bold"
+                               TextColor="{StaticResource Accent}" VerticalOptions="Center" />
+                    </Grid>
+
+                    <Slider x:Name="DurationSlider"
+                            Minimum="3" Maximum="30" Value="8"
+                            MinimumTrackColor="{StaticResource Primary}"
+                            MaximumTrackColor="{StaticResource CardBorder}"
+                            ThumbColor="{StaticResource Primary}"
+                            ValueChanged="OnDurationChanged" />
+
+                    <Label Text="Qualite" FontSize="13" FontAttributes="Bold"
+                           TextColor="{StaticResource TextSecondary}" />
+
+                    <HorizontalStackLayout Spacing="8">
+                        <Button x:Name="Quality540Button" Text="540p (rapide)"
+                                Style="{StaticResource CategoryChipActive}"
+                                Clicked="OnQuality540Clicked" />
+                        <Button x:Name="Quality720Button" Text="720p (net)"
+                                Style="{StaticResource CategoryChip}"
+                                Clicked="OnQuality720Clicked" />
+                    </HorizontalStackLayout>
+
+                    <Label Text="Images par seconde" FontSize="13" FontAttributes="Bold"
+                           TextColor="{StaticResource TextSecondary}" />
+
+                    <HorizontalStackLayout Spacing="8">
+                        <Button x:Name="Fps24Button" Text="24 fps"
+                                Style="{StaticResource CategoryChipActive}"
+                                Clicked="OnFps24Clicked" />
+                        <Button x:Name="Fps30Button" Text="30 fps"
+                                Style="{StaticResource CategoryChip}"
+                                Clicked="OnFps30Clicked" />
+                    </HorizontalStackLayout>
+
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- ============ ACTION ============ -->
+            <Button x:Name="GenerateButton"
+                    Text="Generer la video"
+                    Style="{StaticResource PrimaryButton}"
+                    Clicked="OnGenerateClicked" />
+
+            <Label x:Name="ErrorLabel" TextColor="{StaticResource Danger}"
+                   FontSize="13" IsVisible="False" />
+
+            <!-- ============ PROGRESSION ============ -->
+            <Frame x:Name="ProgressCard" Style="{StaticResource CardFrame}" IsVisible="False">
+                <VerticalStackLayout Spacing="10">
+                    <Label x:Name="ProgressLabel" Text="Encodage..."
+                           FontSize="14" FontAttributes="Bold" />
+                    <ProgressBar x:Name="GenerationProgress"
+                                 Progress="0"
+                                 ProgressColor="{StaticResource Primary}"
+                                 HeightRequest="6" />
+                    <Label x:Name="ProgressHint" Style="{StaticResource MutedLabel}"
+                           Text="Le rendu se fait sur ton telephone, garde l app ouverte." />
+                    <Button Text="Annuler" Style="{StaticResource SecondaryButton}"
+                            Clicked="OnCancelClicked" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- ============ RESULTAT ============ -->
+            <Frame x:Name="ResultCard" Style="{StaticResource CardFrame}" IsVisible="False">
+                <VerticalStackLayout Spacing="10">
+
+                    <Label Text="Ta video" FontSize="15" FontAttributes="Bold" />
+                    <Label x:Name="ResultInfoLabel" Style="{StaticResource SubtitleLabel}" />
+
+                    <Border BackgroundColor="Black" StrokeThickness="0" HeightRequest="300">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="12" />
+                        </Border.StrokeShape>
+                        <toolkit:MediaElement x:Name="Preview"
+                                              ShouldAutoPlay="True"
+                                              ShouldLoopPlayback="True"
+                                              ShouldShowPlaybackControls="True"
+                                              Background="Black" />
+                    </Border>
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                        <Button Grid.Column="0" Text="Partager"
+                                Style="{StaticResource SecondaryButton}"
+                                Clicked="OnShareClicked" />
+                        <Button Grid.Column="1" Text="Regenerer"
+                                Style="{StaticResource SecondaryButton}"
+                                Clicked="OnGenerateClicked" />
+                    </Grid>
+
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- ============ BIBLIOTHEQUE ============ -->
+            <Label Text="Mes videos" Style="{StaticResource SectionTitle}" />
+
+            <Label x:Name="EmptyLibraryLabel"
+                   Text="Aucune video pour l instant. Ecris un prompt et lance la generation."
+                   Style="{StaticResource MutedLabel}" />
+
+            <VerticalStackLayout x:Name="LibraryLayout" Spacing="8">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate>
+                        <Frame Style="{StaticResource CardFrameCompact}">
+                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+                                <VerticalStackLayout Grid.Column="0" Spacing="2">
+                                    <Label Text="{Binding PromptPreview}" FontSize="13"
+                                           FontAttributes="Bold" LineBreakMode="TailTruncation" />
+                                    <Label Text="{Binding Summary}" Style="{StaticResource MutedLabel}" />
+                                </VerticalStackLayout>
+                                <Button Grid.Column="1" Text="Lire"
+                                        Style="{StaticResource CategoryChip}"
+                                        CommandParameter="{Binding .}"
+                                        Clicked="OnLibraryPlayClicked" />
+                                <Button Grid.Column="2" Text="X"
+                                        Style="{StaticResource CategoryChip}"
+                                        WidthRequest="44"
+                                        CommandParameter="{Binding .}"
+                                        Clicked="OnLibraryDeleteClicked" />
+                            </Grid>
+                        </Frame>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </VerticalStackLayout>
+
+            <Label x:Name="FolderLabel" Style="{StaticResource MutedLabel}" Margin="0,8,0,0" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

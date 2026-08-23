@@ -2,8 +2,36 @@
 
 **NovaStream** is a personal and legal IPTV application for Android, built with .NET MAUI.
 
+## Studio - Local video generator (offline)
+
+The **Studio** tab turns a text prompt into a real `.mp4` file, entirely on the phone:
+no server, no internet, no AI model download.
+
+1. Write a prompt, e.g. `Coucher de soleil sur l'ocean, vagues lentes, 10 secondes, texte "Vacances"`.
+2. The prompt is parsed locally (scene, colour palette, tempo, duration, orientation, overlay text).
+3. Frames are drawn one by one with the native Android `Canvas`.
+4. Frames are encoded to H.264 with `MediaCodec` (hardware encoder) and muxed into an MP4 with `MediaMuxer`.
+5. The video plays in the app, can be shared, and is kept in a local library.
+
+Understood keywords (FR/EN):
+
+| Category | Examples |
+| --- | --- |
+| Scene | vagues / waves, particules / stars / snow, neon / synthwave / grid, pulse / rythme / beat, aurore / brume / abstrait |
+| Palette | coucher de soleil, ocean, foret, feu, neon, nuit etoilee, neige, or |
+| Tempo | lent / calme / zen, rapide / dynamique / intense |
+| Duration | `10 secondes`, `12s`, `1 minute` |
+| Format | portrait (default), paysage / 16:9, carre / 1:1 |
+| Overlay text | anything between quotes, or `texte : ...` |
+
+Output files are written to `Android/data/com.novastream.mobile/files/Movies/NovaStudio/`,
+so no storage permission is required and the files stay reachable from any file manager.
+
+Same prompt = same video: the pseudo-random seed is derived from the prompt text.
+
 ## Features
 
+- Local prompt-to-video generator (Studio tab, fully offline)
 - Multi-profile support (Netflix-style)
 - M3U / M3U8 playlist parsing
 - Xtream Codes API connection
@@ -90,7 +118,8 @@ The workflow will detect the tag and create a release with the APK downloadable 
 - .NET 9 / .NET MAUI
 - C# / XAML
 - MVVM Architecture
-- LibVLCSharp (Video Playback)
+- CommunityToolkit.Maui.MediaElement (video playback)
+- Android MediaCodec / MediaMuxer (local H.264 video encoding)
 - JSON Local Storage
 
 ## Legal Notice
