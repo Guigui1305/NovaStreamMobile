@@ -27,6 +27,8 @@ namespace NovaStreamMobile.Services
         private readonly ACanvas _canvas;
         private readonly APaint _paint;
         private readonly APaint _textPaint;
+        private Android.Graphics.RadialGradient[]? _haloShaders;
+        private Android.Graphics.Matrix? _haloMatrix;
 #endif
 
         public FrameRendererService(VideoPromptSpec spec)
@@ -120,7 +122,7 @@ namespace NovaStreamMobile.Services
                 float radius = baseRadius * (0.55f + 0.30f * (float)Math.Sin(t * 0.35f + i));
 
                 int color = colors[2 + (i % Math.Max(1, colors.Length - 2))];
-                int center = WithAlpha(color, 150);
+                int center = WithAlpha(color, 190);
                 int edge = WithAlpha(color, 0);
 
                 _paint.Reset();
@@ -179,6 +181,8 @@ namespace NovaStreamMobile.Services
             int count = 110;
             float maxRadius = Math.Min(_width, _height) * 0.012f;
 
+            EnsureHaloShaders();
+
             _paint.Reset();
             _paint.AntiAlias = true;
 
@@ -190,15 +194,50 @@ namespace NovaStreamMobile.Services
                 float size = maxRadius * (0.35f + Rand(i, 13) * 1.2f);
 
                 float twinkle = 0.45f + 0.55f * (float)Math.Abs(Math.Sin(t * (0.8f + Rand(i, 17)) + i));
-                int color = colors[2 + (i % Math.Max(1, colors.Length - 2))];
+                int colorIndex = 2 + (i % Math.Max(1, colors.Length - 2));
+                int color = colors[colorIndex];
 
-                // Halo
-                _paint.Color = ToColor(WithAlpha(color, (int)(45 * twinkle)));
-                _canvas.DrawCircle(x, y, size * 3.2f, _paint);
+                // Halo : degrade radial mis a l'echelle, sans reallouer de shader.
+                float haloRadius = size * 3.4f;
+                if (_haloShaders != null && _haloMatrix != null)
+                {
+                    _haloMatrix.SetScale(haloRadius, haloRadius);
+                    _haloMatrix.PostTranslate(x, y);
+
+                    var shader = _haloShaders[colorIndex];
+                    shader.SetLocalMatrix(_haloMatrix);
+
+                    _paint.SetShader(shader);
+                    _paint.Alpha = (int)(120 * twinkle);
+                    _canvas.DrawCircle(x, y, haloRadius, _paint);
+                    _paint.SetShader(null);
+                    _paint.Alpha = 255;
+                }
 
                 // Coeur
                 _paint.Color = ToColor(WithAlpha(color, (int)(235 * twinkle)));
                 _canvas.DrawCircle(x, y, size, _paint);
+            }
+        }
+
+        /// <summary>
+        /// Un degrade radial par couleur de palette, cree une seule fois :
+        /// il est ensuite positionne par matrice pour chaque particule.
+        /// </summary>
+        private void EnsureHaloShaders()
+        {
+            if (_haloShaders != null) return;
+
+            int[] colors = Palette;
+            _haloMatrix = new Android.Graphics.Matrix();
+            _haloShaders = new Android.Graphics.RadialGradient[colors.Length];
+
+            for (int i = 0; i < colors.Length; i++)
+            {
+                _haloShaders[i] = new Android.Graphics.RadialGradient(
+                    0f, 0f, 1f,
+                    WithAlpha(colors[i], 255), WithAlpha(colors[i], 0),
+                    Android.Graphics.Shader.TileMode.Clamp);
             }
         }
 
@@ -410,6 +449,8 @@ namespace NovaStreamMobile.Services
         public void Dispose()
         {
 #if ANDROID
+            _haloShaders = null;
+            _haloMatrix = null;
             _paint?.Dispose();
             _textPaint?.Dispose();
             _canvas?.Dispose();

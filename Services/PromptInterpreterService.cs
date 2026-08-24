@@ -100,6 +100,7 @@ namespace NovaStreamMobile.Services
         {
             string raw = (prompt ?? string.Empty).Trim();
             string norm = Normalize(raw);
+            string tokens = Tokenize(raw);
 
             var spec = new VideoPromptSpec
             {
@@ -108,19 +109,19 @@ namespace NovaStreamMobile.Services
             };
 
             // ----- Scene -----
-            var scene = MatchScene(norm);
+            var scene = MatchScene(tokens);
             spec.Scene = scene.Scene;
             spec.SceneName = scene.Name;
 
             // ----- Palette -----
-            var palette = MatchPalette(norm);
+            var palette = MatchPalette(tokens);
             spec.Palette = palette.Colors;
             spec.PaletteName = palette.Name;
 
             // ----- Vitesse -----
             spec.Speed = 1.0;
-            if (ContainsAny(norm, FastWords)) spec.Speed = 1.9;
-            else if (ContainsAny(norm, SlowWords)) spec.Speed = 0.5;
+            if (ContainsAny(tokens, FastWords)) spec.Speed = 1.9;
+            else if (ContainsAny(tokens, SlowWords)) spec.Speed = 0.5;
 
             // ----- Duree -----
             double? duration = ParseDuration(norm);
@@ -131,9 +132,9 @@ namespace NovaStreamMobile.Services
             }
 
             // ----- Orientation -----
-            if (ContainsAny(norm, new[] { "paysage", "landscape", "horizontal", "16:9", "16/9", "youtube", "tv", "cinema" }))
+            if (ContainsAny(tokens, new[] { "paysage", "landscape", "horizontal", "16:9", "16/9", "youtube", "tv", "cinema" }))
                 spec.Orientation = VideoOrientation.Landscape;
-            else if (ContainsAny(norm, new[] { "carre", "square", "1:1", "1/1", "instagram post" }))
+            else if (ContainsAny(tokens, new[] { "carre", "square", "1:1", "1/1", "instagram post" }))
                 spec.Orientation = VideoOrientation.Square;
             else
                 spec.Orientation = VideoOrientation.Portrait;
@@ -146,25 +147,25 @@ namespace NovaStreamMobile.Services
 
         // ==================== Analyse ====================
 
-        private static (VideoScene Scene, string Name) MatchScene(string norm)
+        private static (VideoScene Scene, string Name) MatchScene(string tokens)
         {
             var best = (Scene: VideoScene.Aurora, Name: "Aurore", Score: 0);
             foreach (var entry in Scenes)
             {
-                int score = entry.Keywords.Count(k => norm.Contains(k, StringComparison.Ordinal));
+                int score = Score(tokens, entry.Keywords);
                 if (score > best.Score)
                     best = (entry.Scene, entry.Name, score);
             }
             return (best.Scene, best.Name);
         }
 
-        private static Palette MatchPalette(string norm)
+        private static Palette MatchPalette(string tokens)
         {
             Palette? best = null;
             int bestScore = 0;
             foreach (var palette in Palettes)
             {
-                int score = palette.Keywords.Count(k => norm.Contains(k, StringComparison.Ordinal));
+                int score = Score(tokens, palette.Keywords);
                 if (score > bestScore)
                 {
                     bestScore = score;
@@ -173,6 +174,13 @@ namespace NovaStreamMobile.Services
             }
             return best ?? Palettes[Palettes.Length - 1]; // NovaStream par defaut
         }
+
+        /// <summary>
+        /// Somme la longueur des mots-cles trouves : un mot-cle long et precis
+        /// ("coucher de soleil") l'emporte sur plusieurs mots-cles generiques.
+        /// </summary>
+        private static int Score(string tokens, string[] keywords)
+            => keywords.Where(k => HasKeyword(tokens, k)).Sum(k => k.Length);
 
         private static double? ParseDuration(string norm)
         {
@@ -221,8 +229,52 @@ namespace NovaStreamMobile.Services
             return string.Empty;
         }
 
-        private static bool ContainsAny(string haystack, string[] needles)
-            => needles.Any(n => haystack.Contains(n, StringComparison.Ordinal));
+        private static bool ContainsAny(string tokens, string[] needles)
+            => needles.Any(n => HasKeyword(tokens, n));
+
+        /// <summary>Terminaisons acceptees pour les pluriels et feminins.</summary>
+        private static readonly string[] KeywordSuffixes = { "", "s", "es", "x", "e" };
+
+        /// <summary>
+        /// Recherche par mots entiers, pluriels et feminins compris :
+        /// "lent" trouve "lentes", mais "onde" ne matche pas "secondes"
+        /// et "or" ne matche ni "foret" ni "orange".
+        /// </summary>
+        private static bool HasKeyword(string tokens, string keyword)
+        {
+            string needle = Tokenize(keyword);
+            if (needle.Length <= 2) return false;
+
+            string stem = needle.Substring(0, needle.Length - 1); // " mot" sans l'espace final
+
+            foreach (string suffix in KeywordSuffixes)
+            {
+                if (tokens.Contains(stem + suffix + " ", StringComparison.Ordinal))
+                    return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Normalise puis reduit le texte a " mot1 mot2 mot3 " : la ponctuation
+        /// devient une separation, ce qui permet de comparer des mots entiers.
+        /// </summary>
+        private static string Tokenize(string input)
+        {
+            string normalized = Normalize(input);
+            var builder = new StringBuilder(normalized.Length + 2);
+            builder.Append(' ');
+
+            foreach (char c in normalized)
+            {
+                if (char.IsLetterOrDigit(c)) builder.Append(c);
+                else if (builder[builder.Length - 1] != ' ') builder.Append(' ');
+            }
+
+            if (builder[builder.Length - 1] != ' ') builder.Append(' ');
+            return builder.ToString();
+        }
 
         /// <summary>Minuscules sans accents, pour comparer les mots-cles simplement.</summary>
         private static string Normalize(string input)
